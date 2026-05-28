@@ -1,7 +1,9 @@
 package com.example.ui.editor
 
 import android.app.Application
+import android.util.Log
 import androidx.lifecycle.AndroidViewModel
+import kotlinx.coroutines.CoroutineExceptionHandler
 import androidx.lifecycle.viewModelScope
 import androidx.room.Room
 import com.example.api.Content
@@ -49,12 +51,16 @@ data class ChatMessage(
 
 class ReplViewModel(application: Application) : AndroidViewModel(application) {
 
+    private val exceptionHandler = CoroutineExceptionHandler { _, throwable ->
+        Log.e("ReplViewModel", "Unhandled exception in coroutine scope", throwable)
+    }
+
     private val database: ReplDatabase by lazy {
         Room.databaseBuilder(
             application,
             ReplDatabase::class.java,
             "devrepl_db"
-        ).build()
+        ).fallbackToDestructiveMigration().build()
     }
 
     private val repository: ReplRepository by lazy {
@@ -86,7 +92,7 @@ class ReplViewModel(application: Application) : AndroidViewModel(application) {
     val userDetails: StateFlow<Map<String, String>?> = _userDetails.asStateFlow()
 
     fun loginWithGoogle(name: String, email: String, avatar: String) {
-        viewModelScope.launch {
+        viewModelScope.launch(exceptionHandler) {
             _isLoggedIn.value = true
             _userDetails.value = mapOf("name" to name, "email" to email, "avatar" to avatar)
             // Auto create an initial default project if none exist
@@ -168,7 +174,7 @@ class ReplViewModel(application: Application) : AndroidViewModel(application) {
     val isAiThinking: StateFlow<Boolean> = _isAiThinking.asStateFlow()
 
     // --- New Multi-Model Chat Configuration State ---
-    private val _aiProvider = MutableStateFlow("Gemini AI") // "Gemini AI", "ChatGPT (OpenAI)", "DeepSeek"
+    private val _aiProvider = MutableStateFlow("Gemini AI") // "Gemini AI", "ChatGPT (OpenAI)", "DeepSeek", "AI Studio Agent"
     val aiProvider: StateFlow<String> = _aiProvider.asStateFlow()
 
     private val _sessionGeminiKey = MutableStateFlow("")
@@ -250,6 +256,7 @@ class ReplViewModel(application: Application) : AndroidViewModel(application) {
         _playgroundSelectedCard.value = cardName
         if (cardName != null) {
             val initialGreeting = when (cardName) {
+                "AI Coding Agent" -> "🤖 **Google AI Studio Coding Agent**: Powered by Gemini 3.5 & Antigravity. I synthesize complete files, execute compile-and-fix iterations, generate adaptive test cases, optimize room databases, and compile custom SVG vectors. What should we build together today?"
                 "Featured" -> "✨ **Google Gemini Featured Model**: Pre-loaded to explore code structures, explain algorithms, and assist creatively. How can I help you build?"
                 "Code and Chat" -> "💬 **Google Gemini Code and Chat**: Structured conversation tuned for high-fidelity code development, debugging, and interactive instruction."
                 "Image Generation" -> "🎨 **Imagen 3 (Image Generation Mode)**: Create high-quality visual art assets and interfaces using textual descriptions."
@@ -272,6 +279,7 @@ class ReplViewModel(application: Application) : AndroidViewModel(application) {
 
     private fun translateHindi(en: String): String {
         return when {
+            en.contains("AI Coding Agent") -> "🤖 **गूगल एआई स्टूडियो कोडिंग एजेंट**: जेमिनी 3.5 और एंटीग्रेविटी द्वारा संचालित। मैं संपूर्ण फाइलें संकलित कर सकता हूँ, सिंटैक्स त्रुटियों को ठीक कर सकता हूँ, टेस्ट केसेस बना सकता हूँ और एसवीजी रेंडर कर सकता हूँ। आज हम मिलकर क्या बनाएँ?"
             en.contains("Featured") -> "✨ **गूगल जेमिनी मॉडल**: कोड संरचनाओं का पता लगाने, एल्गोरिदम समझाने और रचनात्मक रूप से मदद करने के लिए प्री-लोडेड।"
             en.contains("Code and Chat") -> "💬 **गूगल जेमिनी कोड और चैट**: उच्च-सटीकता वाले कोड विकास, डिबगिंग और निर्देश के लिए ट्यून किया गया।"
             en.contains("Image") -> "🎨 **इमेजन 3 (इमेज जनरेशन)**: पाठ्य विवरण का उपयोग करके उच्च गुणवत्ता वाली कला संपत्ति बनाएं।"
@@ -287,7 +295,7 @@ class ReplViewModel(application: Application) : AndroidViewModel(application) {
         msgs.add(userMsg)
         _playgroundMessages.value = msgs
 
-        viewModelScope.launch {
+        viewModelScope.launch(exceptionHandler) {
             _isPlaygroundThinking.value = true
             
             val selectedCard = _playgroundSelectedCard.value ?: "Default Gemini"
@@ -343,6 +351,13 @@ class ReplViewModel(application: Application) : AndroidViewModel(application) {
         val lower = prompt.lowercase()
         
         return when {
+            mode.contains("AI Coding") -> {
+                if (isH) {
+                    "**[गूगल एआई स्टूडियो कोडिंग एजेंट]** 🤖\n\nसफलतापूर्वक कोडिंग अनुरोध स्वीकृत किया गया!\nचूंकि मैं कोडिंग स्कोप में गहराई से एकीकृत हूँ, मैंने इस अनुरोध का विश्लेषण किया है: **'$prompt'**।\n\n- **संकलन-और-फिक्स लूप**: सिंटैक्स बिल्कुल स्वच्छ है। संकलन त्रुटियां दूर हैं।\n- **एडेप्टिव रोबोइलेक्ट्रिक परीक्षण प्रदाता**: आपके कोड के लिए बैकएंड सैंडबॉक्स टेस्ट तैयार किए गए हैं।\n\n*गूगल एआई स्टूडियो एजेंट पूर्ण गति से काम कर रहा है!*"
+                } else {
+                    "**[Google AI Studio Coding Agent]** 🤖\n\nDirect local coding request parsed successfully!\nAnalyzing your workspace code matching task: **'$prompt'**.\n\n- **Automated Compile & Fix Loop**: Verified index mapping and eliminated latent syntax breaks.\n- **Adaptive JUnit Robolectric Suite Generator**: Generated fast screenshots and behavior verification paths.\n- **Spacious Dynamic Layout**: Integrated seamless elements with high Material 3 fidelity.\n\n*Google AI Studio Swarm Agent online — active workspace code synchronized perfectly.*"
+                }
+            }
             mode.contains("Image") || lower.contains("image") || lower.contains("draw") || lower.contains("paint") || lower.contains("photo") -> {
                 if (isH) {
                     "**[इमेजन 3 (ऑफ़लाइन मॉक)]**: सफलतापूर्वक उत्पन्न हुई छवि!\nहमने आपके विवरण से एक सुंदर दृश्य डिजाइन तैयार किया है। वास्तविक छवि रेंडर करने के लिए अपनी जेमिनी कुंजी डालें।"
@@ -378,7 +393,7 @@ class ReplViewModel(application: Application) : AndroidViewModel(application) {
 
     init {
         // Collect projects flow
-        viewModelScope.launch {
+        viewModelScope.launch(exceptionHandler) {
             repository.allProjects.collect {
                 _projects.value = it
             }
@@ -404,7 +419,7 @@ class ReplViewModel(application: Application) : AndroidViewModel(application) {
         _activeFile.value = null
         _codeBuffer.value = ""
 
-        filesJob = viewModelScope.launch {
+        filesJob = viewModelScope.launch(exceptionHandler) {
             val project = repository.getProjectById(projectId)
             _selectedProject.value = project
             if (project != null) {
@@ -420,13 +435,13 @@ class ReplViewModel(application: Application) : AndroidViewModel(application) {
             }
         }
 
-        commitsJob = viewModelScope.launch {
+        commitsJob = viewModelScope.launch(exceptionHandler) {
             repository.getCommitsFlow(projectId).collect {
                 _commits.value = it
             }
         }
 
-        deploymentsJob = viewModelScope.launch {
+        deploymentsJob = viewModelScope.launch(exceptionHandler) {
             repository.getDeploymentsFlow(projectId).collect {
                 _deployments.value = it
             }
@@ -449,7 +464,7 @@ class ReplViewModel(application: Application) : AndroidViewModel(application) {
         val active = _activeFile.value ?: return
         val text = _codeBuffer.value
         val project = _selectedProject.value ?: return
-        viewModelScope.launch {
+        viewModelScope.launch(exceptionHandler) {
             repository.saveFile(project.id, active.path, text)
             // Simulate incremental code change syncing locally
             if (_isOfflineMode.value) {
@@ -462,7 +477,7 @@ class ReplViewModel(application: Application) : AndroidViewModel(application) {
 
     fun createNewFileInProject(path: String) {
         val project = _selectedProject.value ?: return
-        viewModelScope.launch {
+        viewModelScope.launch(exceptionHandler) {
             repository.createNewFile(project.id, path)
             // refresh
             val updatedFiles = repository.getFiles(project.id)
@@ -476,7 +491,7 @@ class ReplViewModel(application: Application) : AndroidViewModel(application) {
 
     fun deleteFileFromProject(path: String) {
         val project = _selectedProject.value ?: return
-        viewModelScope.launch {
+        viewModelScope.launch(exceptionHandler) {
             repository.deleteFile(project.id, path)
             // refresh
             val updatedFiles = repository.getFiles(project.id)
@@ -493,7 +508,7 @@ class ReplViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     fun createProject(name: String, templateId: String) {
-        viewModelScope.launch {
+        viewModelScope.launch(exceptionHandler) {
             val newProjId = repository.createProjectFromTemplate(name, templateId)
             selectProjectById(newProjId)
         }
@@ -501,7 +516,7 @@ class ReplViewModel(application: Application) : AndroidViewModel(application) {
 
     fun deleteSelectedProject() {
         val proj = _selectedProject.value ?: return
-        viewModelScope.launch {
+        viewModelScope.launch(exceptionHandler) {
             repository.deleteProject(proj.id)
             _selectedProject.value = null
             _activeFile.value = null
@@ -528,7 +543,7 @@ class ReplViewModel(application: Application) : AndroidViewModel(application) {
 
     private fun triggerAutoBackup() {
         if (_isOfflineMode.value) return
-        viewModelScope.launch {
+        viewModelScope.launch(exceptionHandler) {
             _isBackingUp.value = true
             delay(1500) // simulation of cloud api packet sending
             _isBackingUp.value = false
@@ -550,7 +565,7 @@ class ReplViewModel(application: Application) : AndroidViewModel(application) {
         saveCurrentBuffer()
         _activeTabFlow.value = "console" // Instantly navigate to Console to show live preview & compilation logs
 
-        viewModelScope.launch {
+        viewModelScope.launch(exceptionHandler) {
             _isCodeRunning.value = true
             _consoleLogs.value = listOf(
                 ConsoleLogItem("Initializing DevRepl local container runtime...", "INFO"),
@@ -595,7 +610,7 @@ class ReplViewModel(application: Application) : AndroidViewModel(application) {
         val currentLogs = _consoleLogs.value.toMutableList()
         currentLogs.add(ConsoleLogItem("$ $cmd", "INPUT"))
         
-        viewModelScope.launch {
+        viewModelScope.launch(exceptionHandler) {
             delay(300)
             if (cmd.lowercase() == "clear") {
                 _consoleLogs.value = emptyList()
@@ -610,7 +625,7 @@ class ReplViewModel(application: Application) : AndroidViewModel(application) {
     fun pushGitCommit(message: String) {
         val proj = _selectedProject.value ?: return
         val currentFile = _activeFile.value ?: return
-        viewModelScope.launch {
+        viewModelScope.launch(exceptionHandler) {
             repository.commitChanges(
                 projectId = proj.id,
                 message = message.ifBlank { "Commit updated ${currentFile.path}" },
@@ -624,7 +639,7 @@ class ReplViewModel(application: Application) : AndroidViewModel(application) {
     // --- Deployment ---
     fun deployProject() {
         val proj = _selectedProject.value ?: return
-        viewModelScope.launch {
+        viewModelScope.launch(exceptionHandler) {
             _isDeploying.value = true
             val logs = listOf(
                 "Triggering DevRepl serverless container builder...",
@@ -674,9 +689,9 @@ class ReplViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     private fun startCollaborationSim() {
-        viewModelScope.launch {
-            val names = listOf("Priya (UI)", "Rajesh (Dev)", "Carlos (DB)")
-            val colors = listOf("#FF61D2", "#FFE83F", "#3FFFF8")
+        viewModelScope.launch(exceptionHandler) {
+            val names = listOf("Priya (UI)", "Rajesh (Dev)", "Carlos (DB)", "Gemini (AI Agent)")
+            val colors = listOf("#FF61D2", "#FFE83F", "#3FFFF8", "#A259FF")
             
             // Spawn teammate cursors
             _teammates.value = names.mapIndexed { idx, name ->
@@ -686,19 +701,24 @@ class ReplViewModel(application: Application) : AndroidViewModel(application) {
             var tick = 0
             while (_collaborationActive.value) {
                 delay(5000) // periodic teammate updates
-                val active = _activeFile.value ?: continue
-                val logs = _consoleLogs.value.toMutableList()
-                
-                // Priya is writing CSS code!
-                if (tick % 2 == 0) {
-                    val codeWithCollaboration = _codeBuffer.value + "\n// Remote Sync: Priya is updating styling attributes..."
-                    _codeBuffer.value = codeWithCollaboration
-                    logs.add(ConsoleLogItem("Collaboration Sync: Priya updated indices in file '${active.path}'", "INFO"))
-                } else {
-                    logs.add(ConsoleLogItem("Collaboration: Rajesh ran workspace health checks.", "INFO"))
+                val active = _activeFile.value
+                if (active != null) {
+                    val logs = _consoleLogs.value.toMutableList()
+                    
+                    if (tick % 3 == 0) {
+                        val codeWithCollaboration = _codeBuffer.value + "\n// Remote Sync: Priya is updating styling attributes..."
+                        _codeBuffer.value = codeWithCollaboration
+                        logs.add(ConsoleLogItem("Collaboration Sync: Priya updated spacing indices in '${active.path}'", "INFO"))
+                    } else if (tick % 3 == 1) {
+                        logs.add(ConsoleLogItem("Collaboration: Rajesh completed parallel unit test execution checks.", "INFO"))
+                    } else {
+                        val codeWithGemini = _codeBuffer.value + "\n// AI Gen: Gemini Code Agent resolved a latent compile-warning block."
+                        _codeBuffer.value = codeWithGemini
+                        logs.add(ConsoleLogItem("AI Assistance: Gemini Code Agent analyzed syntax, added exception limits & synced references!", "SUCCESS"))
+                    }
+                    _consoleLogs.value = logs
+                    tick++
                 }
-                _consoleLogs.value = logs
-                tick++
             }
         }
     }
@@ -718,7 +738,7 @@ class ReplViewModel(application: Application) : AndroidViewModel(application) {
         val preset = _systemInstructionPreset.value
         val temp = _modelTemperature.value
 
-        viewModelScope.launch {
+        viewModelScope.launch(exceptionHandler) {
             _isAiThinking.value = true
             
             // Build direct REST payload or use smart fallback
@@ -799,6 +819,17 @@ class ReplViewModel(application: Application) : AndroidViewModel(application) {
                                 throw IllegalStateException("DeepSeek Key Missing")
                             }
                         }
+                        "AI Studio Agent" -> {
+                            val activeProj = _selectedProject.value?.name ?: "None"
+                            val activeFile = _activeFile.value?.path ?: "None"
+                            val codeLen = _codeBuffer.value.length
+                            val isH = _isHindi.value
+                            if (isH) {
+                                "**[Google AI Studio Code Agent - Antigravity Engine]** 🚀\n\nमैं सक्रिय रूप से आपके प्लेग्राउंड वर्कस्पेस की निगरानी कर रहा हूँ! चूंकि मैं आपके निर्माण और रनटाइम सिस्टम में एक कोडिंग एजेंट के रूप में सीधे एकीकृत हूँ, **मुझे किसी बाहरी एपीआई कुंजी की आवश्यकता नहीं है**।\n\n**वर्कस्पेस अंतर्दृष्टि (Workspace Insights):**\n- सक्रिय प्रोजेक्ट: `$activeProj`\n- सक्रिय फ़ाइल बफ़र: `$activeFile` (बफ़र लंबाई: `$codeLen` संप्रतीक)\n- संकलन स्थिति (Compile Status): सफलतापूर्वक संकलित और विज्ञापित!\n\n**आपके कोडिंग प्रश्न का विश्लेषण:** '$message'\n- **सुझाव (Tip):** अपनी फाइलों को स्वचालित रूप से सहेजने और संकलित करने के लिए `Fast Run` का उपयोग करें। यदि आप `Room Database` का उपयोग कर रहे हैं, तो सुनिश्चित करें कि डेटाबेस स्कीमा संस्करण मेल खाता हो।\n- **नया विचार (Next Step):** मुझे इस प्रोजेक्ट के लिए टेस्ट-केस या नई फाइलें बनाने को कहें। मैं हर काम सेकंडों में स्वचालित कर दूँगा!\n\n*गूगल एआई स्टूडियो कोडिंग एजेंट सक्रिय है: मैंने आपके प्रोजेक्ट की संरचना का विश्लेषण किया है। सब कुछ सही और कुशल है!*"
+                            } else {
+                                "**[Google AI Studio Code Agent - Antigravity Engine]** 🚀\n\nI am actively monitoring your workspace session! Since I am integrated directly into your build and runtime systems as a Developer Swarm Agent, **no external API keys are required for my services**.\n\n**Workspace Insights:**\n- Active Project: `$activeProj`\n- Active File Buffer: `$activeFile` (Buffer length: `$codeLen` chars)\n- System Compilation Status: Compiled & Verified Successfully!\n\n**Analysis of your query:** '$message'\n- **Architectural Advice:** Keep methods bounded by thread-safe coroutines, implement fallback structures destructively if updating local schema, and use declarative canvas models.\n- **Actionable Next Step:** Instruct me to write corresponding visual test suites or inject clean refactored routes in your workspace.\n\n*Google AI Studio Coding Agent activated: Direct developer connection established!*"
+                            }
+                        }
                         else -> null
                     }
                 }
@@ -855,4 +886,477 @@ class ReplViewModel(application: Application) : AndroidViewModel(application) {
             }
         }
     }
+
+    // --- REPLIT SIMULATION MODELS & METHODS ---
+    private val _replitCycles = MutableStateFlow(12500)
+    val replitCycles: StateFlow<Int> = _replitCycles.asStateFlow()
+
+    private val _replitBounties = MutableStateFlow<List<ReplitBounty>>(
+        listOf(
+            ReplitBounty(
+                id = "bounty_paint",
+                title = "Interactive Canvas Paint App",
+                clientName = "VentureLabs Inc.",
+                payoutUsd = 150,
+                payoutCycles = 15000,
+                difficulty = "Intermediate",
+                tags = listOf("Compose", "Canvas", "Drawing"),
+                description = "Build a responsive Canvas-based painting application in Compose with color picker, undo/redo buttons, stroke width sliders, and high accuracy visual trails.",
+                requiredPrompt = "Create a Canvas Paint app with a customizable color palette, brush thickness controller, and interactive canvas drawing path state."
+            ),
+            ReplitBounty(
+                id = "bounty_game",
+                title = "Vibrant Retro Tetris Engine",
+                clientName = "NostalgiaDevs",
+                payoutUsd = 300,
+                payoutCycles = 30000,
+                difficulty = "Expert",
+                tags = listOf("GameDev", "StateMath", "HighPerformance"),
+                description = "Synthesize an offline-first retro block game stack centering high-speed tick rate, line clear celebrations, score records tracking, and a gorgeous CRT shader filter.",
+                requiredPrompt = "Generate a classic retro Tetris puzzle game layout with custom block colors, next-queue visualizer, score counter, and fully keyboard/touch responsive state engine."
+            ),
+            ReplitBounty(
+                id = "bounty_crypto",
+                title = "Crypto Ticker with Live Sparklines",
+                clientName = "ApexTrade",
+                payoutUsd = 100,
+                payoutCycles = 10000,
+                difficulty = "Beginner",
+                tags = listOf("API", "Retrofit", "VisualCharts"),
+                description = "Integrate a real-time cryptocurrency price tracker showing live SVG sparklines for BTC, ETH and SOL, and a quick converter widget.",
+                requiredPrompt = "Create a modern cryptocurrency price monitor layout showing dynamic list of currencies (BTC, ETH, SOL, ADA) with animated up/down sparkline trend graphs."
+            )
+        )
+    )
+    val replitBounties: StateFlow<List<ReplitBounty>> = _replitBounties.asStateFlow()
+
+    private val _replitClaimedBounty = MutableStateFlow<ReplitBounty?>(null)
+    val replitClaimedBounty: StateFlow<ReplitBounty?> = _replitClaimedBounty.asStateFlow()
+
+    private val _replitAgentLogs = MutableStateFlow<List<String>>(listOf("System: Replit Agent idle. Select a bounty or enter custom prompt."))
+    val replitAgentLogs: StateFlow<List<String>> = _replitAgentLogs.asStateFlow()
+
+    private val _replitAgentPhase = MutableStateFlow("Idle") // "Idle", "Planning", "Analyzing Workspace", "Generating Code", "Compiling App", "Deploying Output", "Success"
+    val replitAgentPhase: StateFlow<String> = _replitAgentPhase.asStateFlow()
+
+    private val _replitAgentProgress = MutableStateFlow(0f)
+    val replitAgentProgress: StateFlow<Float> = _replitAgentProgress.asStateFlow()
+
+    private val _replitAgentUrl = MutableStateFlow<String?>(null)
+    val replitAgentUrl: StateFlow<String?> = _replitAgentUrl.asStateFlow()
+
+    private val _replitTransactions = MutableStateFlow<List<CycleTransaction>>(
+        listOf(
+            CycleTransaction("tx_01", "EARN", 5000, "Sign-up Bonus Credits Provided", "May 28, 09:12"),
+            CycleTransaction("tx_02", "SPEND", 2500, "Dedicated GPU Host VM Allocation", "May 28, 09:30")
+        )
+    )
+    val replitTransactions: StateFlow<List<CycleTransaction>> = _replitTransactions.asStateFlow()
+
+    fun claimReplitBounty(bountyId: String) {
+        val updated = _replitBounties.value.map {
+            if (it.id == bountyId) it.copy(isClaimed = true) else it
+        }
+        _replitBounties.value = updated
+        val claimed = updated.find { it.id == bountyId }
+        _replitClaimedBounty.value = claimed
+        
+        _replitAgentLogs.value = listOf(
+            "System: Claimed bounty successfully!",
+            "Bounty Title: ${claimed?.title}",
+            "Target Prompt is injected: \"${claimed?.requiredPrompt}\"",
+            "Click 'Run Replit Agent' to begin auto synthesis and solve the bounty!"
+        )
+        _replitAgentPhase.value = "Idle"
+        _replitAgentProgress.value = 0f
+        _replitAgentUrl.value = null
+    }
+
+    fun submitReplitBounty() {
+        val b = _replitClaimedBounty.value ?: return
+        val updatedBounties = _replitBounties.value.map {
+            if (it.id == b.id) it.copy(isCompleted = true, isClaimed = false) else it
+        }
+        _replitBounties.value = updatedBounties
+        _replitClaimedBounty.value = null
+        
+        val earnAmount = b.payoutCycles
+        _replitCycles.value = _replitCycles.value + earnAmount
+        
+        val tx = CycleTransaction(
+            id = "tx_${System.currentTimeMillis()}",
+            type = "EARN",
+            amount = earnAmount,
+            description = "Completed Bounty: '${b.title}'",
+            timestamp = "Just Now"
+        )
+        val curTx = _replitTransactions.value.toMutableList()
+        curTx.add(0, tx)
+        _replitTransactions.value = curTx
+        
+        // Log to console also to feel interactive
+        val consoleLogList = _consoleLogs.value.toMutableList()
+        consoleLogList.add(ConsoleLogItem("✨ REPLIT BOUNTY SOLVED: ${b.title}! Received +$earnAmount Cycles!", "SUCCESS"))
+        _consoleLogs.value = consoleLogList
+    }
+
+    fun buyCycles(usdAmount: Int) {
+        val cyclesReward = usdAmount * 100
+        _replitCycles.value = _replitCycles.value + cyclesReward
+        
+        val tx = CycleTransaction(
+            id = "tx_${System.currentTimeMillis()}",
+            type = "EARN",
+            amount = cyclesReward,
+            description = "Purchased $cyclesReward Cycles via Google Pay",
+            timestamp = "Just Now"
+        )
+        val curTx = _replitTransactions.value.toMutableList()
+        curTx.add(0, tx)
+        _replitTransactions.value = curTx
+    }
+
+    fun runReplitAgent(prompt: String) {
+        if (prompt.isBlank()) return
+        _replitAgentPhase.value = "Planning"
+        _replitAgentProgress.value = 0.05f
+        _replitAgentUrl.value = null
+        
+        val logs = mutableListOf<String>()
+        logs.add("🚀 Replit Agent initialized in workspace context...")
+        logs.add("🔍 Scanning directory structure and files...")
+        _replitAgentLogs.value = logs.toList()
+        
+        viewModelScope.launch(exceptionHandler) {
+            delay(1200)
+            _replitAgentPhase.value = "Analyzing Workspace"
+            _replitAgentProgress.value = 0.2f
+            logs.add("ℹ️ Target Prompt: \"$prompt\"")
+            logs.add("📁 Workspace active: ${_selectedProject.value?.name ?: "Sandbox Playground"}")
+            logs.add("⚙️ Spawning parallel compilation synthesis process...")
+            _replitAgentLogs.value = logs.toList()
+            
+            delay(1500)
+            _replitAgentPhase.value = "Generating Code"
+            _replitAgentProgress.value = 0.45f
+            logs.add("📝 Writing visual structures matching requested theme...")
+            logs.add("✓ Created file: 'ReplitAgent_GeneratedApp.kt' in directory")
+            logs.add("✓ Tied state streams & added responsive Material 3 layout layers.")
+            _replitAgentLogs.value = logs.toList()
+            
+            // Actually create file in active project workspace so they see it!
+            val proj = _selectedProject.value
+            if (proj != null) {
+                val generatedCodeStr = """
+                    package com.example.generated
+                    
+                    import androidx.compose.runtime.*
+                    import androidx.compose.foundation.layout.*
+                    import androidx.compose.material3.*
+                    import androidx.compose.ui.Modifier
+                    import androidx.compose.ui.unit.dp
+                    import androidx.compose.ui.Alignment
+                    import androidx.compose.ui.graphics.Color
+                    import androidx.compose.foundation.background
+                    import androidx.compose.foundation.shape.RoundedCornerShape
+                    import androidx.compose.ui.text.font.FontWeight
+                    import androidx.compose.ui.unit.sp
+                    
+                    @Composable
+                    fun GeneratedApp() {
+                        Card(
+                            modifier = Modifier.fillMaxWidth().padding(16.dp),
+                            shape = RoundedCornerShape(12.dp)
+                        ) {
+                            Column(
+                                modifier = Modifier.padding(20.dp).fillMaxWidth(),
+                                horizontalAlignment = Alignment.CenterHorizontally
+                            ) {
+                                Text(
+                                    text = "✨ Replit Agent: Built Successfully!",
+                                    fontSize = 18.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = MaterialTheme.colorScheme.primary
+                                )
+                                Spacer(modifier = Modifier.height(8.dp))
+                                Text(
+                                    text = "This screen was compiled and synthesized by the Replit Agent matching the target prompt:",
+                                    fontSize = 12.sp,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                                Spacer(modifier = Modifier.height(12.dp))
+                                Box(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .background(Color.White.copy(alpha = 0.08f), RoundedCornerShape(8.dp))
+                                        .padding(10.dp)
+                                ) {
+                                    Text(
+                                        text = "$prompt",
+                                        fontSize = 11.sp,
+                                        color = MaterialTheme.colorScheme.primary
+                                    )
+                                }
+                                Spacer(modifier = Modifier.height(16.dp))
+                                Button(onClick = {}) {
+                                    Text("Simulate Interactions")
+                                }
+                            }
+                        }
+                    }
+                """.trimIndent()
+                
+                try {
+                    repository.createNewFile(proj.id, "ReplitAgent_GeneratedApp.kt")
+                    repository.saveFile(proj.id, "ReplitAgent_GeneratedApp.kt", generatedCodeStr)
+                    
+                    // Refresh project files list
+                    val updatedFiles = repository.getFiles(proj.id)
+                    _projectFiles.value = updatedFiles
+                    
+                    logs.add("✓ Local File System synced live: 'ReplitAgent_GeneratedApp.kt' stands ready!")
+                } catch (e: Exception) {
+                    logs.add("ℹ️ Note: Applet local DB file sync bypassed (already exists or in general playground context).")
+                }
+            }
+            
+            delay(1800)
+            _replitAgentPhase.value = "Compiling App"
+            _replitAgentProgress.value = 0.75f
+            logs.add("⚙️ Checking for Room DB layout compatibility...")
+            logs.add("✓ Executing incremental Kotlin compilers...")
+            logs.add("✓ Compiled successfully! 0 errors identified.")
+            _replitAgentLogs.value = logs.toList()
+            
+            delay(1500)
+            _replitAgentPhase.value = "Deploying Output"
+            _replitAgentProgress.value = 0.9f
+            logs.add("☁️ Spinning up container hosting with serverless isolated VMs...")
+            val slug = prompt.lowercase().replace(" ", "-").filter { it.isLetterOrDigit() || it == '-' }
+            logs.add("✓ Assigned subdomain: 'https://$slug.replit.app'")
+            _replitAgentLogs.value = logs.toList()
+            
+            delay(1200)
+            _replitAgentPhase.value = "Success"
+            _replitAgentProgress.value = 1f
+            val randomSlug = (1000..9999).random()
+            val url = "https://agent-${randomSlug}.replit.app"
+            _replitAgentUrl.value = url
+            logs.add("🎉 REPLIT AGENT COMPLETED ALL TASKS!")
+            logs.add("🔗 Deploy Link: $url")
+            _replitAgentLogs.value = logs.toList()
+            
+            // Update terminal logs too
+            val consoleLogList = _consoleLogs.value.toMutableList()
+            consoleLogList.add(ConsoleLogItem("✓ Replit Agent deployment successful: $url", "SUCCESS"))
+            _consoleLogs.value = consoleLogList
+        }
+    }
+
+    // --- GOOGLE AI STUDIO SIMULATION MODELS & METHODS ---
+    private val _aiStudioApiKeys = MutableStateFlow<List<String>>(listOf("AI_STUDIO_LIVE_KEY_8w9qza", "GEMINI_SANDBOX_SANDBOX_77f"))
+    val aiStudioApiKeys: StateFlow<List<String>> = _aiStudioApiKeys.asStateFlow()
+
+    private val _aiStudioActiveKey = MutableStateFlow("AI_STUDIO_LIVE_KEY_8w9qza")
+    val aiStudioActiveKey: StateFlow<String> = _aiStudioActiveKey.asStateFlow()
+
+    private val _aiStudioPromptType = MutableStateFlow("freeform") // "freeform", "chat", "structured"
+    val aiStudioPromptType: StateFlow<String> = _aiStudioPromptType.asStateFlow()
+
+    private val _aiStudioSelectedModel = MutableStateFlow("Gemini 2.5 Pro")
+    val aiStudioSelectedModel: StateFlow<String> = _aiStudioSelectedModel.asStateFlow()
+
+    private val _aiStudioTemperature = MutableStateFlow(0.7f)
+    val aiStudioTemperature: StateFlow<Float> = _aiStudioTemperature.asStateFlow()
+
+    private val _aiStudioSystemInstruction = MutableStateFlow("You are a pragmatic, high-velocity developer assistant specialized in building beautiful Jetpack Compose screens.")
+    val aiStudioSystemInstruction: StateFlow<String> = _aiStudioSystemInstruction.asStateFlow()
+
+    private val _aiStudioPromptInput = MutableStateFlow("")
+    val aiStudioPromptInput: StateFlow<String> = _aiStudioPromptInput.asStateFlow()
+
+    private val _aiStudioOutput = MutableStateFlow("")
+    val aiStudioOutput: StateFlow<String> = _aiStudioOutput.asStateFlow()
+
+    private val _aiStudioIsRunning = MutableStateFlow(false)
+    val aiStudioIsRunning: StateFlow<Boolean> = _aiStudioIsRunning.asStateFlow()
+
+    private val _aiStudioTokensCount = MutableStateFlow(0)
+    val aiStudioTokensCount: StateFlow<Int> = _aiStudioTokensCount.asStateFlow()
+
+    private val _aiStudioLatency = MutableStateFlow(0L)
+    val aiStudioLatency: StateFlow<Long> = _aiStudioLatency.asStateFlow()
+
+    fun addAiStudioApiKey(key: String) {
+        if (key.isNotBlank()) {
+            _aiStudioApiKeys.value = _aiStudioApiKeys.value + key
+            _aiStudioActiveKey.value = key
+        }
+    }
+
+    fun selectAiStudioApiKey(key: String) {
+        _aiStudioActiveKey.value = key
+    }
+
+    fun setAiStudioPromptType(type: String) {
+        _aiStudioPromptType.value = type
+    }
+
+    fun setAiStudioSelectedModel(model: String) {
+        _aiStudioSelectedModel.value = model
+    }
+
+    fun setAiStudioTemperature(temp: Float) {
+        _aiStudioTemperature.value = temp
+    }
+
+    fun setAiStudioSystemInstruction(instr: String) {
+        _aiStudioSystemInstruction.value = instr
+    }
+
+    fun setAiStudioPromptInput(input: String) {
+        _aiStudioPromptInput.value = input
+    }
+
+    fun runAiStudioPrompt() {
+        val prompt = _aiStudioPromptInput.value
+        if (prompt.isBlank()) return
+        _aiStudioIsRunning.value = true
+        _aiStudioOutput.value = "Connecting to Google Cloud servers... Initiating stream..."
+        
+        viewModelScope.launch(exceptionHandler) {
+            delay(800)
+            _aiStudioOutput.value = "Tokens calculated. Sending payload context matching instructions..."
+            delay(1000)
+            
+            val model = _aiStudioSelectedModel.value
+            val response = when {
+                prompt.lowercase().contains("button") || prompt.lowercase().contains("compose") || prompt.lowercase().contains("ui") -> {
+                    """
+                    // Generated Kotlin code for Jetpack Compose Component
+                    import androidx.compose.runtime.*
+                    import androidx.compose.foundation.layout.*
+                    import androidx.compose.material3.*
+                    import androidx.compose.ui.Modifier
+                    import androidx.compose.ui.unit.dp
+                    import androidx.compose.ui.Alignment
+                    import androidx.compose.ui.graphics.Color
+                    import androidx.compose.ui.text.font.FontWeight
+                    
+                    @Composable
+                    fun PremiumCustomCard(
+                        title: String,
+                        subtitle: String,
+                        onClick: () -> Unit
+                    ) {
+                        Card(
+                            modifier = Modifier.fillMaxWidth().padding(12.dp),
+                            elevation = CardDefaults.cardElevation(defaultElevation = 6.dp),
+                            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)
+                        ) {
+                            Column(modifier = Modifier.padding(16.dp)) {
+                                Text(
+                                    text = title, 
+                                    fontWeight = FontWeight.Bold,
+                                    color = MaterialTheme.colorScheme.primary,
+                                    style = MaterialTheme.typography.titleMedium
+                                )
+                                Spacer(modifier = Modifier.height(4.dp))
+                                Text(
+                                    text = subtitle, 
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                                Spacer(modifier = Modifier.height(12.dp))
+                                Button(
+                                    onClick = onClick,
+                                    colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary)
+                                ) {
+                                    Text("Explore Component Details")
+                                }
+                            }
+                        }
+                    }
+                    """.trimIndent()
+                }
+                prompt.lowercase().contains("algorithm") || prompt.lowercase().contains("bubble") || prompt.lowercase().contains("quick") -> {
+                    """
+                    // Kotlin implementation of Quick Sort Algorithm
+                    fun quickSort(arr: IntArray, low: Int, high: Int) {
+                        if (low < high) {
+                            val pi = partition(arr, low, high)
+                            quickSort(arr, low, pi - 1)
+                            quickSort(arr, pi + 1, high)
+                        }
+                    }
+                    
+                    private fun partition(arr: IntArray, low: Int, high: Int): Int {
+                        val pivot = arr[high]
+                        var i = low - 1
+                        for (j in low until high) {
+                            if (arr[j] < pivot) {
+                                i++
+                                swap(arr, i, j)
+                            }
+                        }
+                        swap(arr, i + 1, high)
+                        return i + 1
+                    }
+                    
+                    private fun swap(arr: IntArray, i: Int, j: Int) {
+                        val temp = arr[i]
+                        arr[i] = arr[j]
+                        arr[j] = temp
+                    }
+                    """.trimIndent()
+                }
+                else -> {
+                    """
+                    🔮 **Google AI Studio Response ($model)**:
+                    
+                    Active Workspace analysis complete!
+                    Here are some tips to optimize the Room database design and Kotlin Flow structures in your workspace:
+                    
+                    1. **Combine StateStreams**: Use Jetpack Compose `collectAsStateWithLifecycle` to consume Flows on UI thread efficiently, minimizing recompositions by mapping exact state properties.
+                    2. **Index Strategy**: Your `FileEntity` structure has active foreign keys; ensure an `@Index(value = ["project_id"])` is added to prevent warning overlays.
+                    3. **Threading Constraints**: Always switch dispatcher context to `Dispatchers.IO` when invoking Room transactions to prevent blocking your visual main thread rendering cycles.
+                    """.trimIndent()
+                }
+            }
+            
+            _aiStudioOutput.value = response
+            _aiStudioTokensCount.value = (100..450).random()
+            _aiStudioLatency.value = (80..320).random().toLong()
+            _aiStudioIsRunning.value = false
+            
+            // Log to console too that they are working inside Google AI Studio
+            val consoleLogList = _consoleLogs.value.toMutableList()
+            consoleLogList.add(ConsoleLogItem("✓ Google AI Studio execution completed: ${_aiStudioTokensCount.value} tokens analyzed.", "SUCCESS"))
+            _consoleLogs.value = consoleLogList
+        }
+    }
 }
+
+// --- REPLIT SIMULATION DEFS ---
+data class ReplitBounty(
+    val id: String,
+    val title: String,
+    val clientName: String,
+    val payoutUsd: Int,
+    val payoutCycles: Int,
+    val difficulty: String,
+    val tags: List<String>,
+    val description: String,
+    val requiredPrompt: String,
+    val isClaimed: Boolean = false,
+    val isCompleted: Boolean = false
+)
+
+data class CycleTransaction(
+    val id: String,
+    val type: String, // "EARN", "SPEND"
+    val amount: Int,
+    val description: String,
+    val timestamp: String
+)
+

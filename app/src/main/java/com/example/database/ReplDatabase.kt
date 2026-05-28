@@ -102,7 +102,7 @@ interface ReplDao {
 
 @Database(
     entities = [ProjectEntity::class, FileEntity::class, CommitEntity::class, DeploymentEntity::class],
-    version = 1,
+    version = 2,
     exportSchema = false
 )
 abstract class ReplDatabase : RoomDatabase() {

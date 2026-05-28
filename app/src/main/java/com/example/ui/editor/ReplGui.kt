@@ -28,6 +28,7 @@ import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.drawscope.rotate
+import androidx.compose.foundation.text.selection.SelectionContainer
 import androidx.compose.ui.graphics.vector.ImageVector
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.delay
@@ -2002,6 +2003,8 @@ fun IdeWorkspaceLayout(viewModel: ReplViewModel, tokens: VisualThemeTokens) {
         ) {
             when (activeTab) {
                 "playground" -> PlaygroundTab(viewModel, tokens)
+                "replit" -> ReplitTab(viewModel, tokens)
+                "aistudio" -> AiStudioTab(viewModel, tokens)
                 "files" -> ProjectFilesTab(viewModel, tokens)
                 "editor" -> EditorTab(viewModel, tokens)
                 "console" -> ConsoleTab(viewModel, tokens)
@@ -2026,6 +2029,8 @@ fun TabToolbar(
 ) {
     val items = listOf(
         Triple("playground", Icons.Default.Science, if (isHindi) "प्लेग्राउंड" else "Playground"),
+        Triple("replit", Icons.Default.Bolt, if (isHindi) "रेप्लिट" else "Replit"),
+        Triple("aistudio", Icons.Default.DeveloperMode, if (isHindi) "एआई स्टूडियो" else "AI Studio"),
         Triple("files", Icons.Default.Folder, if (isHindi) "फ़ाइलें" else "Files"),
         Triple("editor", Icons.Default.Edit, if (isHindi) "संपादक" else "Editor"),
         Triple("console", Icons.Default.Terminal, if (isHindi) "कंसोल" else "Console"),
@@ -4657,9 +4662,9 @@ fun GhostwriterChatTab(viewModel: ReplViewModel, tokens: VisualThemeTokens) {
                     // Chips Row
                     Row(
                         modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        horizontalArrangement = Arrangement.spacedBy(6.dp)
                     ) {
-                        listOf("Gemini AI", "ChatGPT (OpenAI)", "DeepSeek").forEach { prov ->
+                        listOf("Gemini AI", "ChatGPT (OpenAI)", "DeepSeek", "AI Studio Agent").forEach { prov ->
                             val isSel = aiProvider == prov
                             Box(
                                 modifier = Modifier
@@ -4671,9 +4676,15 @@ fun GhostwriterChatTab(viewModel: ReplViewModel, tokens: VisualThemeTokens) {
                                     .padding(vertical = 6.dp),
                                 contentAlignment = Alignment.Center
                             ) {
+                                val chipText = when (prov) {
+                                    "Gemini AI" -> "Gemini"
+                                    "ChatGPT (OpenAI)" -> "ChatGPT"
+                                    "DeepSeek" -> "DeepSeek"
+                                    else -> "AI Studio"
+                                }
                                 Text(
-                                    text = if (prov == "Gemini AI") "Gemini" else if (prov == "ChatGPT (OpenAI)") "ChatGPT" else "DeepSeek",
-                                    fontSize = 10.sp,
+                                    text = chipText,
+                                    fontSize = 9.sp,
                                     fontWeight = FontWeight.Bold,
                                     color = if (isSel) tokens.primary else tokens.text
                                 )
@@ -4683,46 +4694,69 @@ fun GhostwriterChatTab(viewModel: ReplViewModel, tokens: VisualThemeTokens) {
                     
                     Spacer(modifier = Modifier.height(10.dp))
                     
-                    // Password Field for current selected model key
-                    val currentKeyVal = when (aiProvider) {
-                        "Gemini AI" -> sessionGeminiKey
-                        "ChatGPT (OpenAI)" -> sessionOpenaiKey
-                        else -> sessionDeepseekKey
-                    }
+                    val isStudioAgent = aiProvider == "AI Studio Agent"
                     
-                    val keyLabel = when (aiProvider) {
-                        "Gemini AI" -> if (isHindi) "जेमिनी सत्र कुंजी रिप्लेसमेंट (वैकल्पिक)" else "Session Gemini API Key (Optional Override)"
-                        "ChatGPT (OpenAI)" -> if (isHindi) "ओपनएआई एपीआई कुंजी दर्ज करें" else "Enter OpenAI API Key (Required for ChatGPT)"
-                        else -> if (isHindi) "डीपसीक एपीआई कुंजी दर्ज करें" else "Enter DeepSeek API Key (Required for reasoning)"
-                    }
-                    
-                    var keyVisible by remember { mutableStateOf(false) }
-                    
-                    OutlinedTextField(
-                        value = currentKeyVal,
-                        onValueChange = { nv ->
-                            when (aiProvider) {
-                                "Gemini AI" -> viewModel.setSessionGeminiKey(nv)
-                                "ChatGPT (OpenAI)" -> viewModel.setSessionOpenaiKey(nv)
-                                else -> viewModel.setSessionDeepseekKey(nv)
-                            }
-                        },
-                        label = { Text(keyLabel, fontSize = 10.sp) },
-                        visualTransformation = if (keyVisible) VisualTransformation.None else PasswordVisualTransformation(),
-                        trailingIcon = {
-                            IconButton(onClick = { keyVisible = !keyVisible }) {
-                                Icon(
-                                    imageVector = if (keyVisible) Icons.Default.VisibilityOff else Icons.Default.Visibility,
-                                    contentDescription = "toggle key visibility",
-                                    modifier = Modifier.size(16.dp),
-                                    tint = tokens.primary
+                    if (isStudioAgent) {
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clip(RoundedCornerShape(8.dp))
+                                .background(tokens.primary.copy(alpha = 0.08f))
+                                .border(1.dp, tokens.primary.copy(alpha = 0.3f), RoundedCornerShape(8.dp))
+                                .padding(12.dp)
+                        ) {
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Icon(Icons.Default.Code, contentDescription = null, tint = tokens.primary, modifier = Modifier.size(20.dp))
+                                Spacer(modifier = Modifier.width(10.dp))
+                                Text(
+                                    text = if (isHindi) "गूगल एआई स्टूडियो सक्रिय! किसी बाहरी एपीआई कुंजी की आवश्यकता नहीं है।" else "AI Studio Agent connected! Directly writing and compiling files inside workspace. No API keys required.",
+                                    fontSize = 11.sp,
+                                    color = tokens.text
                                 )
                             }
-                        },
-                        modifier = Modifier.fillMaxWidth().testTag("ai_session_key_field"),
-                        singleLine = true,
-                        colors = OutlinedTextFieldDefaults.colors(focusedBorderColor = tokens.primary)
-                    )
+                        }
+                    } else {
+                        // Password Field for current selected model key
+                        val currentKeyVal = when (aiProvider) {
+                            "Gemini AI" -> sessionGeminiKey
+                            "ChatGPT (OpenAI)" -> sessionOpenaiKey
+                            else -> sessionDeepseekKey
+                        }
+                        
+                        val keyLabel = when (aiProvider) {
+                            "Gemini AI" -> if (isHindi) "जेमिनी सत्र कुंजी रिप्लेसमेंट (वैकल्पिक)" else "Session Gemini API Key (Optional Override)"
+                            "ChatGPT (OpenAI)" -> if (isHindi) "ओपनएआई एपीआई कुंजी दर्ज करें" else "Enter OpenAI API Key (Required for ChatGPT)"
+                            else -> if (isHindi) "डीपसीक एपीआई कुंजी दर्ज करें" else "Enter DeepSeek API Key (Required for reasoning)"
+                        }
+                        
+                        var keyVisible by remember { mutableStateOf(false) }
+                        
+                        OutlinedTextField(
+                            value = currentKeyVal,
+                            onValueChange = { nv ->
+                                when (aiProvider) {
+                                    "Gemini AI" -> viewModel.setSessionGeminiKey(nv)
+                                    "ChatGPT (OpenAI)" -> viewModel.setSessionOpenaiKey(nv)
+                                    else -> viewModel.setSessionDeepseekKey(nv)
+                                }
+                            },
+                            label = { Text(keyLabel, fontSize = 10.sp) },
+                            visualTransformation = if (keyVisible) VisualTransformation.None else PasswordVisualTransformation(),
+                            trailingIcon = {
+                                IconButton(onClick = { keyVisible = !keyVisible }) {
+                                    Icon(
+                                        imageVector = if (keyVisible) Icons.Default.VisibilityOff else Icons.Default.Visibility,
+                                        contentDescription = "toggle key visibility",
+                                        modifier = Modifier.size(16.dp),
+                                        tint = tokens.primary
+                                    )
+                                }
+                            },
+                            modifier = Modifier.fillMaxWidth().testTag("ai_session_key_field"),
+                            singleLine = true,
+                            colors = OutlinedTextFieldDefaults.colors(focusedBorderColor = tokens.primary)
+                        )
+                    }
                     
                     Spacer(modifier = Modifier.height(10.dp))
                     
@@ -5509,6 +5543,7 @@ fun PlaygroundTab(viewModel: ReplViewModel, tokens: VisualThemeTokens) {
                             }
 
                             val agentCards = listOf(
+                                Triple("AI Coding Agent", "🤖 Google AI Studio Code Agent & Assistant", Color(0xFFE040FB)),
                                 Triple("Antigravity Preview", "🛸 Code-swarm engine helper", tokens.primary),
                                 Triple("AI Talk Radio", "🎙️ Interactive transcription generator", Color(0xFF0288D1)),
                                 Triple("Customer Support", "🤝 Client semantic help center", Color(0xFF5E35B1)),
@@ -5538,6 +5573,7 @@ fun PlaygroundTab(viewModel: ReplViewModel, tokens: VisualThemeTokens) {
                                             contentAlignment = Alignment.Center
                                         ) {
                                             val ic = when (name) {
+                                                "AI Coding Agent" -> Icons.Default.Code
                                                 "Antigravity Preview" -> Icons.Default.FlightTakeoff
                                                 "AI Talk Radio" -> Icons.Default.Radio
                                                 "Customer Support" -> Icons.Default.Face
@@ -7276,4 +7312,1386 @@ fun CyborgChatbotBackground(modifier: Modifier = Modifier) {
         }
     )
 }
+
+@Composable
+fun ReplitTab(viewModel: ReplViewModel, tokens: VisualThemeTokens) {
+    val isHindi by viewModel.isHindi.collectAsState()
+    val cycles by viewModel.replitCycles.collectAsState()
+    val bounties by viewModel.replitBounties.collectAsState()
+    val claimedBounty by viewModel.replitClaimedBounty.collectAsState()
+    val agentLogs by viewModel.replitAgentLogs.collectAsState()
+    val agentPhase by viewModel.replitAgentPhase.collectAsState()
+    val agentProgress by viewModel.replitAgentProgress.collectAsState()
+    val agentUrl by viewModel.replitAgentUrl.collectAsState()
+    val transactions by viewModel.replitTransactions.collectAsState()
+
+    var activeSubTab by remember { mutableStateOf("agent") } // "agent", "bounties", "wallet"
+    var customPromptInput by remember { mutableStateOf("") }
+    val clipboardManager = androidx.compose.ui.platform.LocalClipboardManager.current
+    val context = androidx.compose.ui.platform.LocalContext.current
+
+    // Set customPrompt to claimed bounty requiredPrompt
+    LaunchedEffect(claimedBounty) {
+        if (claimedBounty != null) {
+            customPromptInput = claimedBounty!!.requiredPrompt
+        }
+    }
+
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(tokens.background)
+    ) {
+        // --- Header Block with Orange/Vermilion Replit Neon Branding ---
+        Card(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(14.dp),
+            colors = CardDefaults.cardColors(containerColor = Color(0xFF141414)), // dark futuristic contrast
+            shape = RoundedCornerShape(16.dp),
+            border = BorderStroke(1.2.dp, Color(0xFFF24E1E).copy(alpha = 0.5f)) // Replit orange glow
+        ) {
+            Column(
+                modifier = Modifier.padding(16.dp)
+            ) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Icon(
+                            imageVector = Icons.Default.Bolt,
+                            contentDescription = "Replit Bolt Logo",
+                            tint = Color(0xFFF24E1E), // Vermilion Red
+                            modifier = Modifier.size(26.dp)
+                        )
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Column {
+                            Text(
+                                text = "REPLIT WORKSPACE",
+                                fontWeight = FontWeight.Black,
+                                fontSize = 18.sp,
+                                color = Color.White,
+                                letterSpacing = 1.sp
+                            )
+                            Text(
+                                text = if (isHindi) "क्लाउड-एजेंट सैंडबॉक्स सक्रिय" else "Cloud-Agent Sandbox Active",
+                                fontSize = 10.sp,
+                                color = Color(0xFFA0A0A0)
+                            )
+                        }
+                    }
+
+                    // Cycles Wallet Bubble Glow
+                    Box(
+                        modifier = Modifier
+                            .clip(RoundedCornerShape(12.dp))
+                            .background(Color(0xFFF24E1E).copy(alpha = 0.15f))
+                            .border(1.dp, Color(0xFFF24E1E).copy(alpha = 0.4f), RoundedCornerShape(12.dp))
+                            .padding(horizontal = 12.dp, vertical = 6.dp)
+                    ) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Text(
+                                text = "🌀",
+                                fontSize = 14.sp,
+                                modifier = Modifier.padding(end = 4.dp)
+                            )
+                            Text(
+                                text = "$cycles Cycles",
+                                fontWeight = FontWeight.Black,
+                                fontSize = 13.sp,
+                                color = Color(0xFFF24E1E)
+                            )
+                        }
+                    }
+                }
+            }
+        }
+
+        // --- Custom Horizontal Navigation Row for Replit Sub-Tabs ---
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 14.dp)
+                .background(tokens.surface, RoundedCornerShape(12.dp))
+                .border(0.8.dp, tokens.textMuted.copy(alpha = 0.15f), RoundedCornerShape(12.dp))
+                .padding(4.dp),
+            horizontalArrangement = Arrangement.spacedBy(4.dp)
+        ) {
+            val subTabItems = listOf(
+                Triple("agent", Icons.Default.Build, if (isHindi) "रेप्लिट एजेंट" else "Replit Agent"),
+                Triple("bounties", Icons.Default.Star, if (isHindi) "बाउंटीज़" else "Bounties"),
+                Triple("wallet", Icons.Default.Refresh, if (isHindi) "वॉलेट" else "Wallet & Tx")
+            )
+
+            subTabItems.forEach { (id, icon, label) ->
+                val isActive = activeSubTab == id
+                Box(
+                    modifier = Modifier
+                        .weight(1f)
+                        .clip(RoundedCornerShape(8.dp))
+                        .background(if (isActive) Color(0xFFF24E1E).copy(alpha = 0.12f) else Color.Transparent)
+                        .clickable { activeSubTab = id }
+                        .padding(vertical = 10.dp),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.Center
+                    ) {
+                        Icon(
+                            imageVector = icon,
+                            contentDescription = null,
+                            modifier = Modifier.size(15.dp),
+                            tint = if (isActive) Color(0xFFF24E1E) else tokens.textMuted
+                        )
+                        Spacer(modifier = Modifier.width(5.dp))
+                        Text(
+                            text = label,
+                            fontSize = 11.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = if (isActive) Color(0xFFF24E1E) else tokens.text
+                        )
+                    }
+                }
+            }
+        }
+
+        Spacer(modifier = Modifier.height(10.dp))
+
+        // --- Active claimed bounty indicator bar ---
+        if (claimedBounty != null && activeSubTab != "bounties") {
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 14.dp, vertical = 4.dp)
+                    .clip(RoundedCornerShape(8.dp))
+                    .background(tokens.success.copy(alpha = 0.08f))
+                    .border(1.dp, tokens.success.copy(alpha = 0.25f), RoundedCornerShape(8.dp))
+                    .padding(10.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.SpaceBetween
+            ) {
+                Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.weight(1f)) {
+                    Text("🏅", fontSize = 16.sp)
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Column {
+                        Text(
+                            text = if (isHindi) "सक्रिय बाउंटी दावा किया गया:" else "Active Bounty Claimed:",
+                            fontSize = 10.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = tokens.success
+                        )
+                        Text(
+                            text = claimedBounty!!.title,
+                            fontSize = 11.sp,
+                            fontWeight = FontWeight.Medium,
+                            color = tokens.text
+                        )
+                    }
+                }
+                Text(
+                    text = "🌀 ${claimedBounty!!.payoutCycles}",
+                    fontSize = 11.sp,
+                    color = tokens.success,
+                    fontWeight = FontWeight.Black
+                )
+            }
+            Spacer(modifier = Modifier.height(8.dp))
+        }
+
+        // --- SUB-TAB DISPATCH PAGES ---
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .weight(1f)
+        ) {
+            when (activeSubTab) {
+                "agent" -> {
+                    // Agent Prompt Page
+                    LazyColumn(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .padding(horizontal = 14.dp),
+                        verticalArrangement = Arrangement.spacedBy(12.dp)
+                    ) {
+                        item {
+                            Card(
+                                modifier = Modifier.fillMaxWidth(),
+                                colors = CardDefaults.cardColors(containerColor = tokens.surface),
+                                border = BorderStroke(1.dp, tokens.textMuted.copy(alpha = 0.15f))
+                            ) {
+                                Column(modifier = Modifier.padding(14.dp)) {
+                                    Text(
+                                        text = if (isHindi) "रेप्लिट एआई-एजेंट प्रॉम्प्ट 🤖" else "Replit AI-Agent Input 🤖",
+                                        fontWeight = FontWeight.Bold,
+                                        fontSize = 13.sp,
+                                        color = tokens.primary
+                                    )
+                                    Spacer(modifier = Modifier.height(4.dp))
+                                    Text(
+                                        text = if (isHindi) "वह ऐप विवरण दर्ज करें जिसे एजेंट स्वचालित रूप से कोड, संकलित और तैनात करेगा।" else "Instruct the Agent what user experience to prototype, structure, verify, and host serverless.",
+                                        fontSize = 10.5.sp,
+                                        color = tokens.textMuted
+                                    )
+
+                                    Spacer(modifier = Modifier.height(10.dp))
+
+                                    OutlinedTextField(
+                                        value = customPromptInput,
+                                        onValueChange = { customPromptInput = it },
+                                        modifier = Modifier.fillMaxWidth(),
+                                        placeholder = { Text("E.g., build beautiful tic-tac-toe game with score state...", fontSize = 11.sp) },
+                                        colors = OutlinedTextFieldDefaults.colors(
+                                            focusedBorderColor = Color(0xFFF24E1E),
+                                            focusedTextColor = tokens.text,
+                                            unfocusedTextColor = tokens.text
+                                        )
+                                    )
+
+                                    Spacer(modifier = Modifier.height(12.dp))
+
+                                    Button(
+                                        onClick = {
+                                            viewModel.runReplitAgent(customPromptInput)
+                                        },
+                                        modifier = Modifier.fillMaxWidth(),
+                                        colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFF24E1E)),
+                                        enabled = agentPhase == "Idle" || agentPhase == "Success",
+                                        shape = RoundedCornerShape(10.dp)
+                                    ) {
+                                        Text(
+                                            text = if (agentPhase == "Idle" || agentPhase == "Success") (if (isHindi) "🚀 रेप्लिट एजेंट चलाएँ" else "🚀 Run Replit Agent") else "⚡ Agent Active...",
+                                            fontWeight = FontWeight.Bold,
+                                            color = Color.White
+                                        )
+                                    }
+                                }
+                            }
+                        }
+
+                        // Status and Progress bar
+                        if (agentPhase != "Idle") {
+                            item {
+                                Card(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    colors = CardDefaults.cardColors(containerColor = Color(0xFF141414)),
+                                    border = BorderStroke(1.2.dp, Color(0xFFF24E1E).copy(alpha = 0.3f))
+                                ) {
+                                    Column(modifier = Modifier.padding(14.dp)) {
+                                        Row(
+                                            modifier = Modifier.fillMaxWidth(),
+                                            horizontalArrangement = Arrangement.SpaceBetween,
+                                            verticalAlignment = Alignment.CenterVertically
+                                        ) {
+                                            Text(
+                                                text = "Phase: ${agentPhase.uppercase()}",
+                                                fontWeight = FontWeight.Black,
+                                                fontSize = 12.sp,
+                                                color = Color(0xFFF24E1E)
+                                            )
+                                            Text(
+                                                text = "${(agentProgress * 100).toInt()}%",
+                                                fontWeight = FontWeight.Bold,
+                                                fontSize = 11.sp,
+                                                color = Color.White
+                                            )
+                                        }
+
+                                        Spacer(modifier = Modifier.height(6.dp))
+
+                                        LinearProgressIndicator(
+                                            progress = { agentProgress },
+                                            modifier = Modifier.fillMaxWidth().height(6.dp).clip(CircleShape),
+                                            color = Color(0xFFF24E1E),
+                                            trackColor = Color.White.copy(alpha = 0.1f)
+                                        )
+
+                                        Spacer(modifier = Modifier.height(10.dp))
+
+                                        // Deploy URL Link Box
+                                        if (agentUrl != null) {
+                                            Box(
+                                                modifier = Modifier
+                                                    .fillMaxWidth()
+                                                    .clip(RoundedCornerShape(8.dp))
+                                                    .background(tokens.success.copy(alpha = 0.15f))
+                                                    .border(1.dp, tokens.success, RoundedCornerShape(8.dp))
+                                                    .clickable {
+                                                        clipboardManager.setText(androidx.compose.ui.text.AnnotatedString(agentUrl!!))
+                                                    }
+                                                    .padding(12.dp)
+                                            ) {
+                                                Row(
+                                                    verticalAlignment = Alignment.CenterVertically,
+                                                    horizontalArrangement = Arrangement.SpaceBetween,
+                                                    modifier = Modifier.fillMaxWidth()
+                                                ) {
+                                                    Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.weight(1f)) {
+                                                        Icon(Icons.Default.CloudQueue, contentDescription = null, tint = tokens.success, modifier = Modifier.size(20.dp))
+                                                        Spacer(modifier = Modifier.width(8.dp))
+                                                        Column {
+                                                            Text("LIVE SANDBOX RUNNING ☁️", fontSize = 10.sp, fontWeight = FontWeight.Black, color = tokens.success)
+                                                            Text(agentUrl!!, fontSize = 11.sp, color = Color.White, fontWeight = FontWeight.Bold)
+                                                        }
+                                                    }
+                                                    Icon(Icons.Default.ContentCopy, contentDescription = "Copy Url", tint = Color.LightGray, modifier = Modifier.size(16.dp))
+                                                }
+                                            }
+
+                                            // Highlight claimed bounty solution submit button
+                                            if (claimedBounty != null) {
+                                                Spacer(modifier = Modifier.height(12.dp))
+                                                Button(
+                                                    onClick = {
+                                                        viewModel.submitReplitBounty()
+                                                        android.widget.Toast.makeText(context, "🏆 Bounty Completed! Cycles awarded!", android.widget.Toast.LENGTH_LONG).show()
+                                                    },
+                                                    modifier = Modifier.fillMaxWidth(),
+                                                    colors = ButtonDefaults.buttonColors(containerColor = tokens.success),
+                                                    shape = RoundedCornerShape(8.dp)
+                                                ) {
+                                                    Icon(Icons.Default.Check, contentDescription = null, modifier = Modifier.size(16.dp))
+                                                    Spacer(modifier = Modifier.width(6.dp))
+                                                    Text("Submit Solution & Approve Payout", fontWeight = FontWeight.Bold, color = Color.White)
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+
+                        // Monospace Terminal Output Logs
+                        item {
+                            Card(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .height(240.dp),
+                                colors = CardDefaults.cardColors(containerColor = Color(0xFF0C0C0C)), // charcoal black
+                                border = BorderStroke(1.dp, Color.White.copy(alpha = 0.08f))
+                            ) {
+                                Column(modifier = Modifier.padding(12.dp)) {
+                                    Row(
+                                        modifier = Modifier.fillMaxWidth(),
+                                        horizontalArrangement = Arrangement.SpaceBetween,
+                                        verticalAlignment = Alignment.CenterVertically
+                                    ) {
+                                        Text("REPLIT-SWARM WORKSPACE LOGS", fontSize = 10.sp, fontWeight = FontWeight.Bold, color = Color.Gray)
+                                        Box(
+                                            modifier = Modifier
+                                                .size(8.dp)
+                                                .clip(CircleShape)
+                                                .background(if (agentPhase != "Idle") Color(0xFF00FF66) else Color.Yellow)
+                                        )
+                                    }
+                                    Spacer(modifier = Modifier.height(8.dp))
+
+                                    // Scrolling Terminal text
+                                    Box(modifier = Modifier.fillMaxSize()) {
+                                        LazyColumn(
+                                            modifier = Modifier.fillMaxSize(),
+                                            verticalArrangement = Arrangement.spacedBy(4.dp)
+                                        ) {
+                                            items(agentLogs) { log ->
+                                                Text(
+                                                    text = log,
+                                                    fontSize = 11.sp,
+                                                    fontFamily = androidx.compose.ui.text.font.FontFamily.Monospace,
+                                                    color = if (log.contains("🎉") || log.contains("✓") || log.contains("SUCCESS")) Color(0xFF00FF66)
+                                                            else if (log.contains("🚀") || log.contains("Plan:") || log.contains("Phase:")) Color(0xFFF24E1E)
+                                                            else Color.LightGray
+                                                )
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                        item { Spacer(modifier = Modifier.height(20.dp)) }
+                    }
+                }
+                "bounties" -> {
+                    // Freelance feed
+                    LazyColumn(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .padding(horizontal = 14.dp),
+                        verticalArrangement = Arrangement.spacedBy(12.dp)
+                    ) {
+                        items(bounties) { bounty ->
+                            Card(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .border(
+                                        width = if (bounty.id == claimedBounty?.id) 1.5.dp else 0.8.dp,
+                                        color = if (bounty.id == claimedBounty?.id) tokens.success else tokens.textMuted.copy(alpha = 0.15f),
+                                        shape = RoundedCornerShape(14.dp)
+                                    ),
+                                colors = CardDefaults.cardColors(containerColor = tokens.surface),
+                                shape = RoundedCornerShape(14.dp)
+                            ) {
+                                Column(modifier = Modifier.padding(14.dp)) {
+                                    Row(
+                                        modifier = Modifier.fillMaxWidth(),
+                                        horizontalArrangement = Arrangement.SpaceBetween,
+                                        verticalAlignment = Alignment.CenterVertically
+                                    ) {
+                                        Text(
+                                            text = bounty.difficulty.uppercase(),
+                                            fontSize = 9.sp,
+                                            fontWeight = FontWeight.Bold,
+                                            color = if (bounty.difficulty == "Expert") tokens.error else tokens.primary,
+                                            modifier = Modifier
+                                                .clip(RoundedCornerShape(4.dp))
+                                                .background(if (bounty.difficulty == "Expert") tokens.error.copy(alpha = 0.1f) else tokens.primary.copy(alpha = 0.1f))
+                                                .padding(horizontal = 6.dp, vertical = 2.dp)
+                                        )
+
+                                        Text(
+                                            text = "🌀 ${bounty.payoutCycles} Cycles",
+                                            fontSize = 11.5.sp,
+                                            fontWeight = FontWeight.Black,
+                                            color = Color(0xFFF24E1E)
+                                        )
+                                    }
+
+                                    Spacer(modifier = Modifier.height(6.dp))
+
+                                    Text(
+                                        text = bounty.title,
+                                        fontSize = 14.sp,
+                                        fontWeight = FontWeight.Bold,
+                                        color = tokens.text
+                                    )
+
+                                    Text(
+                                        text = "Client: ${bounty.clientName} • USD Value: $${bounty.payoutUsd}",
+                                        fontSize = 10.5.sp,
+                                        color = tokens.textMuted
+                                    )
+
+                                    Spacer(modifier = Modifier.height(6.dp))
+
+                                    Text(
+                                        text = bounty.description,
+                                        fontSize = 11.sp,
+                                        color = tokens.text.copy(alpha = 0.85f)
+                                    )
+
+                                    Spacer(modifier = Modifier.height(10.dp))
+
+                                    // Tags row
+                                    Row(
+                                        horizontalArrangement = Arrangement.spacedBy(6.dp),
+                                        modifier = Modifier.fillMaxWidth()
+                                    ) {
+                                        bounty.tags.forEach { tag ->
+                                            Text(
+                                                text = "#$tag",
+                                                fontSize = 9.sp,
+                                                fontWeight = FontWeight.Medium,
+                                                color = tokens.textMuted,
+                                                modifier = Modifier
+                                                    .background(tokens.background, RoundedCornerShape(4.dp))
+                                                    .padding(horizontal = 6.dp, vertical = 2.dp)
+                                            )
+                                        }
+                                    }
+
+                                    Spacer(modifier = Modifier.height(12.dp))
+
+                                    if (bounty.isCompleted) {
+                                        Box(
+                                            modifier = Modifier
+                                                .fillMaxWidth()
+                                                .clip(RoundedCornerShape(8.dp))
+                                                .background(tokens.success.copy(alpha = 0.12f))
+                                                .padding(10.dp),
+                                            contentAlignment = Alignment.Center
+                                        ) {
+                                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                                Icon(Icons.Default.CheckCircle, contentDescription = null, tint = tokens.success, modifier = Modifier.size(16.dp))
+                                                Spacer(modifier = Modifier.width(6.dp))
+                                                Text("Bounty Completed & Paid! 🏆", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = tokens.success)
+                                            }
+                                        }
+                                    } else {
+                                        Row(
+                                            modifier = Modifier.fillMaxWidth(),
+                                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                                        ) {
+                                            if (claimedBounty?.id == bounty.id) {
+                                                Button(
+                                                    onClick = {
+                                                        activeSubTab = "agent"
+                                                    },
+                                                    modifier = Modifier.weight(1f),
+                                                    colors = ButtonDefaults.buttonColors(containerColor = tokens.primary),
+                                                    shape = RoundedCornerShape(8.dp)
+                                                ) {
+                                                    Text("Execute Solution", fontSize = 11.sp, color = Color.White)
+                                                }
+                                            } else {
+                                                Button(
+                                                    onClick = {
+                                                        viewModel.claimReplitBounty(bounty.id)
+                                                        android.widget.Toast.makeText(context, "Bounty claimed! Workspace loaded.", android.widget.Toast.LENGTH_SHORT).show()
+                                                    },
+                                                    modifier = Modifier.weight(1f),
+                                                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFF24E1E)),
+                                                    enabled = claimedBounty == null,
+                                                    shape = RoundedCornerShape(8.dp)
+                                                ) {
+                                                    Text(if (claimedBounty == null) "Claim Bounty" else "Bounty Claimed Active", fontSize = 11.sp, color = Color.White)
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                        item { Spacer(modifier = Modifier.height(20.dp)) }
+                    }
+                }
+                "wallet" -> {
+                    // Balance Billing
+                    LazyColumn(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .padding(horizontal = 14.dp),
+                        verticalArrangement = Arrangement.spacedBy(12.dp)
+                    ) {
+                        item {
+                            Card(
+                                modifier = Modifier.fillMaxWidth(),
+                                colors = CardDefaults.cardColors(containerColor = tokens.surface),
+                                border = BorderStroke(1.dp, tokens.textMuted.copy(alpha = 0.15f))
+                            ) {
+                                Column(modifier = Modifier.padding(16.dp)) {
+                                    Text("Replit cycles wallet store", fontWeight = FontWeight.Black, fontSize = 12.sp, color = tokens.textMuted)
+                                    Spacer(modifier = Modifier.height(6.dp))
+                                    Text("🌀 $cycles Cycles", fontWeight = FontWeight.Black, fontSize = 26.sp, color = Color(0xFFF24E1E))
+                                    Text("Simulated value: $${cycles / 100f} USD • Autoscale hosts active", fontSize = 11.sp, color = tokens.textMuted)
+
+                                    Spacer(modifier = Modifier.height(14.dp))
+                                    Divider(color = tokens.textMuted.copy(alpha = 0.15f))
+                                    Spacer(modifier = Modifier.height(14.dp))
+
+                                    Text("Quick Topup Store Sim:", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = tokens.text)
+                                    Spacer(modifier = Modifier.height(8.dp))
+
+                                    Row(
+                                        modifier = Modifier.fillMaxWidth(),
+                                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                                    ) {
+                                        listOf(
+                                            Pair(50, "+5000 🌀"),
+                                            Pair(100, "+10000 🌀"),
+                                            Pair(250, "+25000 🌀")
+                                        ).forEach { (usd, text) ->
+                                            Button(
+                                                onClick = {
+                                                    viewModel.buyCycles(usd)
+                                                    android.widget.Toast.makeText(context, "Purchased $text Credits!", android.widget.Toast.LENGTH_SHORT).show()
+                                                },
+                                                modifier = Modifier.weight(1f),
+                                                colors = ButtonDefaults.buttonColors(containerColor = tokens.background),
+                                                border = BorderStroke(1.dp, Color(0xFFF24E1E).copy(alpha = 0.4f)),
+                                                shape = RoundedCornerShape(8.dp),
+                                                contentPadding = PaddingValues(0.dp)
+                                            ) {
+                                                Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.padding(vertical = 4.dp)) {
+                                                    Text(text, fontSize = 10.5.sp, fontWeight = FontWeight.Black, color = Color(0xFFF24E1E))
+                                                    Text("$$usd USD", fontSize = 9.sp, color = tokens.textMuted)
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+
+                        item {
+                            Text("RECENT TRANSACTION HISTORY", fontSize = 10.5.sp, fontWeight = FontWeight.Black, color = tokens.textMuted)
+                        }
+
+                        items(transactions) { tx ->
+                            Card(
+                                modifier = Modifier.fillMaxWidth(),
+                                colors = CardDefaults.cardColors(containerColor = tokens.surface),
+                                border = BorderStroke(0.6.dp, tokens.textMuted.copy(alpha = 0.1f))
+                            ) {
+                                Row(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .padding(12.dp),
+                                    horizontalArrangement = Arrangement.SpaceBetween,
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Row(verticalAlignment = Alignment.CenterVertically) {
+                                        Box(
+                                            modifier = Modifier
+                                                .size(34.dp)
+                                                .clip(CircleShape)
+                                                .background(if (tx.type == "EARN") tokens.success.copy(alpha = 0.1f) else tokens.error.copy(alpha = 0.1f)),
+                                            contentAlignment = Alignment.Center
+                                        ) {
+                                            Text(if (tx.type == "EARN") "📥" else "📤", fontSize = 14.sp)
+                                        }
+                                        Spacer(modifier = Modifier.width(10.dp))
+                                        Column {
+                                            Text(tx.description, fontSize = 11.5.sp, fontWeight = FontWeight.Bold, color = tokens.text)
+                                            Text(tx.timestamp, fontSize = 9.sp, color = tokens.textMuted)
+                                        }
+                                    }
+
+                                    Text(
+                                        text = "${if (tx.type == "EARN") "+" else "-"}${tx.amount} 🌀",
+                                        fontWeight = FontWeight.Black,
+                                        fontSize = 11.5.sp,
+                                        color = if (tx.type == "EARN") tokens.success else tokens.error
+                                    )
+                                }
+                            }
+                        }
+                        item { Spacer(modifier = Modifier.height(20.dp)) }
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+fun AiStudioTab(viewModel: ReplViewModel, tokens: VisualThemeTokens) {
+    val isHindi by viewModel.isHindi.collectAsState()
+    val apiKeys by viewModel.aiStudioApiKeys.collectAsState()
+    val activeKey by viewModel.aiStudioActiveKey.collectAsState()
+    val promptType by viewModel.aiStudioPromptType.collectAsState()
+    val selectedModel by viewModel.aiStudioSelectedModel.collectAsState()
+    val temperature by viewModel.aiStudioTemperature.collectAsState()
+    val systemInstruction by viewModel.aiStudioSystemInstruction.collectAsState()
+    val promptInput by viewModel.aiStudioPromptInput.collectAsState()
+    val outputText by viewModel.aiStudioOutput.collectAsState()
+    val isRunning by viewModel.aiStudioIsRunning.collectAsState()
+    val tokensCount by viewModel.aiStudioTokensCount.collectAsState()
+    val latency by viewModel.aiStudioLatency.collectAsState()
+
+    var activeSubTab by remember { mutableStateOf("prompt") } // "prompt", "templates", "apikeys"
+    var showApiKeyDialog by remember { mutableStateOf(false) }
+    var newApiKeyName by remember { mutableStateOf("") }
+    
+    var showCodeDialog by remember { mutableStateOf(false) }
+    var selectedLanguageCode by remember { mutableStateOf("Kotlin") } // "Kotlin", "Python", "NodeJS", "cURL"
+
+    val clipboardManager = androidx.compose.ui.platform.LocalClipboardManager.current
+    val context = androidx.compose.ui.platform.LocalContext.current
+
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(tokens.background)
+    ) {
+        // --- Header Block with Google Blue AI Studio Branding ---
+        Card(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(14.dp),
+            colors = CardDefaults.cardColors(containerColor = Color(0xFF0F172A)), // Deep Slate Blue
+            shape = RoundedCornerShape(16.dp),
+            border = BorderStroke(1.2.dp, Color(0xFF4285F4).copy(alpha = 0.5f)) // Blue glow
+        ) {
+            Column(
+                modifier = Modifier.padding(16.dp)
+            ) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Box(
+                            modifier = Modifier
+                                .size(36.dp)
+                                .clip(CircleShape)
+                                .background(Color(0xFF4285F4).copy(alpha = 0.15f)),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Text("✨", fontSize = 18.sp, color = Color(0xFF4285F4))
+                        }
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Column {
+                            Text(
+                                text = "GOOGLE AI STUDIO",
+                                fontWeight = FontWeight.Black,
+                                fontSize = 16.sp,
+                                color = Color.White,
+                                letterSpacing = 1.sp
+                            )
+                            Text(
+                                text = if (isHindi) "क्लाउड प्रांप्ट प्रोटोटाइपिंग" else "Cloud Prompt Engineering Environment",
+                                fontSize = 10.sp,
+                                color = Color(0xFF94A3B8)
+                            )
+                        }
+                    }
+
+                    // API Key Badge Indicator
+                    Box(
+                        modifier = Modifier
+                            .clip(RoundedCornerShape(8.dp))
+                            .background(Color(0xFF4285F4).copy(alpha = 0.12f))
+                            .border(1.dp, Color(0xFF4285F4).copy(alpha = 0.3f), RoundedCornerShape(8.dp))
+                            .padding(horizontal = 10.dp, vertical = 5.dp)
+                    ) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Icon(
+                                imageVector = Icons.Default.VpnKey,
+                                contentDescription = null,
+                                tint = Color(0xFF4285F4),
+                                modifier = Modifier.size(12.dp)
+                            )
+                            Spacer(modifier = Modifier.width(5.dp))
+                            Text(
+                                text = activeKey.take(15) + "...",
+                                fontSize = 10.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = Color(0xFF4285F4)
+                            )
+                        }
+                    }
+                }
+            }
+        }
+
+        // --- Tab Selection List (Prompt, Templates, API Keys) ---
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 14.dp)
+                .background(tokens.surface, RoundedCornerShape(12.dp))
+                .border(0.8.dp, tokens.textMuted.copy(alpha = 0.15f), RoundedCornerShape(12.dp))
+                .padding(4.dp),
+            horizontalArrangement = Arrangement.spacedBy(4.dp)
+        ) {
+            val subTabs = listOf(
+                Triple("prompt", Icons.Default.Science, if (isHindi) "प्रांप्ट सैंडबॉक्स" else "Prompt Sandbox"),
+                Triple("templates", Icons.Default.LibraryBooks, if (isHindi) "टेंपलेट लाइब्रेरी" else "Prompt Library"),
+                Triple("apikeys", Icons.Default.VpnKey, if (isHindi) "कुंजीयाँ" else "API Keys Manager")
+            )
+
+            subTabs.forEach { (id, icon, label) ->
+                val isActive = activeSubTab == id
+                Box(
+                    modifier = Modifier
+                        .weight(1f)
+                        .clip(RoundedCornerShape(8.dp))
+                        .background(if (isActive) Color(0xFF4285F4).copy(alpha = 0.12f) else Color.Transparent)
+                        .clickable { activeSubTab = id }
+                        .padding(vertical = 10.dp),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.Center
+                    ) {
+                        Icon(
+                            imageVector = icon,
+                            contentDescription = null,
+                            modifier = Modifier.size(14.dp),
+                            tint = if (isActive) Color(0xFF4285F4) else tokens.textMuted
+                        )
+                        Spacer(modifier = Modifier.width(5.dp))
+                        Text(
+                            text = label,
+                            fontSize = 11.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = if (isActive) Color(0xFF4285F4) else tokens.text
+                        )
+                    }
+                }
+            }
+        }
+
+        Spacer(modifier = Modifier.height(10.dp))
+
+        // --- Active Workspace Content ---
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .weight(1f)
+        ) {
+            when (activeSubTab) {
+                "prompt" -> {
+                    LazyColumn(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .padding(horizontal = 14.dp),
+                        verticalArrangement = Arrangement.spacedBy(12.dp)
+                    ) {
+                        // Parameter block
+                        item {
+                            Card(
+                                modifier = Modifier.fillMaxWidth(),
+                                colors = CardDefaults.cardColors(containerColor = tokens.surface),
+                                border = BorderStroke(1.dp, tokens.textMuted.copy(alpha = 0.15f))
+                            ) {
+                                Column(modifier = Modifier.padding(14.dp)) {
+                                    Text(
+                                        text = if (isHindi) "मॉडल और मापदंड सेटिंग्स" else "Model & Inference Parameters",
+                                        fontWeight = FontWeight.Bold,
+                                        fontSize = 12.sp,
+                                        color = Color(0xFF4285F4)
+                                    )
+                                    Spacer(modifier = Modifier.height(10.dp))
+
+                                    // Model Selection
+                                    Row(
+                                        modifier = Modifier.fillMaxWidth(),
+                                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                                    ) {
+                                        listOf("Gemini 2.5 Pro", "Gemini 2.0 Flash", "Gemini 1.5 Pro").forEach { m ->
+                                            val isSel = selectedModel == m
+                                            Box(
+                                                modifier = Modifier
+                                                    .weight(1f)
+                                                    .clip(RoundedCornerShape(8.dp))
+                                                    .background(if (isSel) Color(0xFF4285F4).copy(alpha = 0.15f) else tokens.background)
+                                                    .border(1.dp, if (isSel) Color(0xFF4285F4) else tokens.textMuted.copy(alpha = 0.2f), RoundedCornerShape(8.dp))
+                                                    .clickable { viewModel.setAiStudioSelectedModel(m) }
+                                                    .padding(vertical = 10.dp, horizontal = 4.dp),
+                                                contentAlignment = Alignment.Center
+                                            ) {
+                                                Text(
+                                                    text = m,
+                                                    fontSize = 10.5.sp,
+                                                    fontWeight = FontWeight.Bold,
+                                                    color = if (isSel) Color(0xFF4285F4) else tokens.text
+                                                )
+                                            }
+                                        }
+                                    }
+
+                                    Spacer(modifier = Modifier.height(12.dp))
+
+                                    // Temperature Config
+                                    Row(
+                                        modifier = Modifier.fillMaxWidth(),
+                                        horizontalArrangement = Arrangement.SpaceBetween,
+                                        verticalAlignment = Alignment.CenterVertically
+                                    ) {
+                                        Text("Temperature", fontSize = 11.sp, color = tokens.text, fontWeight = FontWeight.Bold)
+                                        Text(String.format("%.2f", temperature), fontSize = 11.sp, color = Color(0xFF4285F4), fontWeight = FontWeight.Black)
+                                    }
+                                    Slider(
+                                        value = temperature,
+                                        onValueChange = { viewModel.setAiStudioTemperature(it) },
+                                        valueRange = 0f..2f,
+                                        colors = SliderDefaults.colors(
+                                            activeTrackColor = Color(0xFF4285F4),
+                                            thumbColor = Color(0xFF4285F4)
+                                        )
+                                    )
+
+                                    Spacer(modifier = Modifier.height(6.dp))
+
+                                    // System Instruction
+                                    Text(
+                                        text = "System Instruction",
+                                        fontWeight = FontWeight.Bold,
+                                        fontSize = 11.sp,
+                                        color = tokens.text
+                                    )
+                                    Spacer(modifier = Modifier.height(4.dp))
+                                    OutlinedTextField(
+                                        value = systemInstruction,
+                                        onValueChange = { viewModel.setAiStudioSystemInstruction(it) },
+                                        modifier = Modifier.fillMaxWidth(),
+                                        textStyle = androidx.compose.ui.text.TextStyle(fontSize = 11.5.sp),
+                                        colors = OutlinedTextFieldDefaults.colors(
+                                            focusedBorderColor = Color(0xFF4285F4),
+                                            focusedTextColor = tokens.text,
+                                            unfocusedTextColor = tokens.text
+                                        )
+                                    )
+                                }
+                            }
+                        }
+
+                        // Sandbox Prompt area
+                        item {
+                            Card(
+                                modifier = Modifier.fillMaxWidth(),
+                                colors = CardDefaults.cardColors(containerColor = tokens.surface),
+                                border = BorderStroke(1.dp, tokens.textMuted.copy(alpha = 0.15f))
+                            ) {
+                                Column(modifier = Modifier.padding(14.dp)) {
+                                    Text(
+                                        text = if (isHindi) "मुख्य प्रॉम्प्ट (प्रयोगशाला)" else "Main Active Prompt Input",
+                                        fontWeight = FontWeight.Bold,
+                                        fontSize = 12.sp,
+                                        color = Color(0xFF4285F4)
+                                    )
+                                    Spacer(modifier = Modifier.height(8.dp))
+
+                                    OutlinedTextField(
+                                        value = promptInput,
+                                        onValueChange = { viewModel.setAiStudioPromptInput(it) },
+                                        modifier = Modifier.fillMaxWidth().height(100.dp),
+                                        placeholder = { Text("E.g., build beautiful compose list layout or sort algorithms...", fontSize = 11.sp) },
+                                        textStyle = androidx.compose.ui.text.TextStyle(fontSize = 11.5.sp),
+                                        colors = OutlinedTextFieldDefaults.colors(
+                                            focusedBorderColor = Color(0xFF4285F4),
+                                            focusedTextColor = tokens.text,
+                                            unfocusedTextColor = tokens.text
+                                        )
+                                    )
+
+                                    Spacer(modifier = Modifier.height(10.dp))
+
+                                    // Execution triggers
+                                    Row(
+                                        modifier = Modifier.fillMaxWidth(),
+                                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                                    ) {
+                                        Button(
+                                            onClick = { viewModel.runAiStudioPrompt() },
+                                            modifier = Modifier.weight(1.5f),
+                                            colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF4285F4)),
+                                            enabled = !isRunning && promptInput.isNotBlank(),
+                                            shape = RoundedCornerShape(8.dp)
+                                        ) {
+                                            Icon(Icons.Default.PlayArrow, contentDescription = null, modifier = Modifier.size(16.dp))
+                                            Spacer(modifier = Modifier.width(6.dp))
+                                            Text(if (isRunning) "Running..." else "Run Prompt", fontWeight = FontWeight.Bold, color = Color.White)
+                                        }
+
+                                        Button(
+                                            onClick = { showCodeDialog = true },
+                                            modifier = Modifier.weight(1f),
+                                            colors = ButtonDefaults.buttonColors(containerColor = tokens.background),
+                                            border = BorderStroke(1.dp, Color(0xFF4285F4)),
+                                            shape = RoundedCornerShape(8.dp),
+                                            enabled = promptInput.isNotBlank()
+                                        ) {
+                                            Text("Get Code", color = Color(0xFF4285F4), fontWeight = FontWeight.Bold)
+                                        }
+                                    }
+                                }
+                            }
+                        }
+
+                        // Simulation output box
+                        if (outputText.isNotBlank() || isRunning) {
+                            item {
+                                Card(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    colors = CardDefaults.cardColors(containerColor = Color(0xFF0F172A)),
+                                    border = BorderStroke(1.2.dp, Color(0xFF4285F4).copy(alpha = 0.4f))
+                                ) {
+                                    Column(modifier = Modifier.padding(14.dp)) {
+                                        Row(
+                                            modifier = Modifier.fillMaxWidth(),
+                                            horizontalArrangement = Arrangement.SpaceBetween,
+                                            verticalAlignment = Alignment.CenterVertically
+                                        ) {
+                                            Text("GENERATIVE MODEL RESPONSE", fontSize = 10.sp, fontWeight = FontWeight.Black, color = Color(0xFF94A3B8))
+                                            if (tokensCount > 0) {
+                                                Text(
+                                                    text = "⏱️ ${latency}ms • 📊 ${tokensCount} tokens", 
+                                                    fontSize = 9.5.sp, 
+                                                    fontWeight = FontWeight.Bold, 
+                                                    color = Color(0xFF38BDF8)
+                                                )
+                                            }
+                                        }
+                                        Spacer(modifier = Modifier.height(10.dp))
+
+                                        // Response display
+                                        Box(
+                                            modifier = Modifier
+                                                .fillMaxWidth()
+                                                .background(Color.Black.copy(alpha = 0.2f), RoundedCornerShape(8.dp))
+                                                .padding(10.dp)
+                                        ) {
+                                            SelectionContainer {
+                                                Text(
+                                                    text = outputText,
+                                                    fontSize = 11.5.sp,
+                                                    fontFamily = androidx.compose.ui.text.font.FontFamily.Monospace,
+                                                    color = Color.White
+                                                )
+                                            }
+                                        }
+
+                                        Spacer(modifier = Modifier.height(8.dp))
+                                        Row(
+                                            modifier = Modifier.fillMaxWidth(),
+                                            horizontalArrangement = Arrangement.End
+                                        ) {
+                                            IconButton(
+                                                onClick = {
+                                                    clipboardManager.setText(androidx.compose.ui.text.AnnotatedString(outputText))
+                                                    android.widget.Toast.makeText(context, "Copied response to clipboard!", android.widget.Toast.LENGTH_SHORT).show()
+                                                },
+                                                modifier = Modifier.size(36.dp)
+                                            ) {
+                                                Icon(Icons.Default.ContentCopy, contentDescription = "Copy Content", tint = Color.LightGray, modifier = Modifier.size(16.dp))
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                        item { Spacer(modifier = Modifier.height(20.dp)) }
+                    }
+                }
+                "templates" -> {
+                    // Pre-defined engineering structures
+                    LazyColumn(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .padding(horizontal = 14.dp),
+                        verticalArrangement = Arrangement.spacedBy(12.dp)
+                    ) {
+                        val templatesList = listOf(
+                            Triple(
+                                "Object Detector & Tag Synthesizer",
+                                "Zero-shot tagging on dynamic JSON images list structure.",
+                                Pair(
+                                    "You are a strict JSON Tag synthesizer. Return metadata schema labels matching specified visuals.",
+                                    "Create an object detection schema for item lists [Laptop, Mobile, Notebook] with visual coordinate maps and tags."
+                                )
+                            ),
+                            Triple(
+                                "Kotlin Coroutines Flow Refactorer",
+                                "Refactors existing structures into fully reactive Flows.",
+                                Pair(
+                                    "You are a Kotlin concurrency specialist. Use state-first non-blocking patterns.",
+                                    "Refactor direct synchronous Room database calls into direct distinct StateStreams with lifecycle awareness."
+                                )
+                            ),
+                            Triple(
+                                "Structured Multi-Agent Swarm Companion",
+                                "Implements collaborative multi-agent simulation prompts.",
+                                Pair(
+                                    "You operate in Swarm mode. Assign different personas (Auditor, Builder, Tester) to evaluate instructions.",
+                                    "Establish an agent swarm prompt structure where 'Auditor' evaluates potential safety errors of a UI controller."
+                                )
+                            )
+                        )
+
+                        items(templatesList) { (title, subtitle, prompts) ->
+                            Card(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .clickable {
+                                        viewModel.setAiStudioSystemInstruction(prompts.first)
+                                        viewModel.setAiStudioPromptInput(prompts.second)
+                                        activeSubTab = "prompt"
+                                        android.widget.Toast.makeText(context, "Loaded Prompt Template!", android.widget.Toast.LENGTH_SHORT).show()
+                                    },
+                                colors = CardDefaults.cardColors(containerColor = tokens.surface),
+                                border = BorderStroke(0.8.dp, tokens.textMuted.copy(alpha = 0.15f))
+                            ) {
+                                Column(modifier = Modifier.padding(14.dp)) {
+                                    Row(verticalAlignment = Alignment.CenterVertically) {
+                                        Text("📚", fontSize = 16.sp)
+                                        Spacer(modifier = Modifier.width(8.dp))
+                                        Text(
+                                            text = title,
+                                            fontWeight = FontWeight.Bold,
+                                            fontSize = 13.sp,
+                                            color = tokens.text
+                                        )
+                                    }
+                                    Spacer(modifier = Modifier.height(4.dp))
+                                    Text(text = subtitle, fontSize = 11.sp, color = tokens.textMuted)
+                                    
+                                    Spacer(modifier = Modifier.height(10.dp))
+                                    Box(
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .background(tokens.background, RoundedCornerShape(6.dp))
+                                            .padding(8.dp)
+                                    ) {
+                                        Text(
+                                            text = "System: ${prompts.first.take(50)}...",
+                                            fontSize = 10.sp,
+                                            color = Color(0xFF4285F4),
+                                            fontStyle = androidx.compose.ui.text.font.FontStyle.Italic
+                                        )
+                                    }
+                                }
+                            }
+                        }
+                        item { Spacer(modifier = Modifier.height(20.dp)) }
+                    }
+                }
+                "apikeys" -> {
+                    // API key manager page
+                    LazyColumn(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .padding(horizontal = 14.dp),
+                        verticalArrangement = Arrangement.spacedBy(12.dp)
+                    ) {
+                        item {
+                            Card(
+                                modifier = Modifier.fillMaxWidth(),
+                                colors = CardDefaults.cardColors(containerColor = tokens.surface),
+                                border = BorderStroke(1.dp, Color(0xFF4285F4).copy(alpha = 0.2f))
+                            ) {
+                                Column(modifier = Modifier.padding(16.dp)) {
+                                    Text("🔑 Google AI Studio Key Provisions", fontWeight = FontWeight.Bold, fontSize = 13.sp, color = Color(0xFF4285F4))
+                                    Spacer(modifier = Modifier.height(6.dp))
+                                    Text(
+                                        text = "Generate individual API keys linked to Google Cloud projects to make authenticated SDK operations.",
+                                        fontSize = 11.sp,
+                                        color = tokens.textMuted
+                                    )
+                                    Spacer(modifier = Modifier.height(12.dp))
+
+                                    Button(
+                                        onClick = { showApiKeyDialog = true },
+                                        modifier = Modifier.fillMaxWidth(),
+                                        colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF4285F4)),
+                                        shape = RoundedCornerShape(8.dp)
+                                    ) {
+                                        Icon(Icons.Default.Add, contentDescription = null, modifier = Modifier.size(16.dp))
+                                        Spacer(modifier = Modifier.width(6.dp))
+                                        Text("Create New API Key", fontWeight = FontWeight.Bold, color = Color.White)
+                                    }
+                                }
+                            }
+                        }
+
+                        item {
+                            Text("ACTIVE REGISTERED KEYS", fontSize = 10.5.sp, fontWeight = FontWeight.Black, color = tokens.textMuted)
+                        }
+
+                        items(apiKeys) { key ->
+                            val isActive = activeKey == key
+                            Card(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .clickable { viewModel.selectAiStudioApiKey(key) }
+                                    .border(
+                                        width = if (isActive) 1.5.dp else 0.5.dp,
+                                        color = if (isActive) Color(0xFF4285F4) else tokens.textMuted.copy(alpha = 0.15f),
+                                        shape = RoundedCornerShape(12.dp)
+                                    ),
+                                colors = CardDefaults.cardColors(containerColor = tokens.surface)
+                            ) {
+                                Row(
+                                    modifier = Modifier.fillMaxWidth().padding(14.dp),
+                                    horizontalArrangement = Arrangement.SpaceBetween,
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Row(verticalAlignment = Alignment.CenterVertically) {
+                                        Text(if (isActive) "🟢" else "⚪", fontSize = 12.sp)
+                                        Spacer(modifier = Modifier.width(10.dp))
+                                        Column {
+                                            Text(
+                                                text = key,
+                                                fontSize = 12.sp,
+                                                fontWeight = FontWeight.Bold,
+                                                color = tokens.text
+                                            )
+                                            Text("Region: Global-Edge • Latency: low", fontSize = 9.sp, color = tokens.textMuted)
+                                        }
+                                    }
+
+                                    IconButton(
+                                        onClick = {
+                                            clipboardManager.setText(androidx.compose.ui.text.AnnotatedString(key))
+                                            android.widget.Toast.makeText(context, "Copied Key to Clipboard!", android.widget.Toast.LENGTH_SHORT).show()
+                                        },
+                                        modifier = Modifier.size(28.dp)
+                                    ) {
+                                        Icon(Icons.Default.ContentCopy, contentDescription = "Copy key", tint = tokens.textMuted, modifier = Modifier.size(14.dp))
+                                    }
+                                }
+                            }
+                        }
+                        item { Spacer(modifier = Modifier.height(20.dp)) }
+                    }
+                }
+            }
+        }
+    }
+
+    // --- Key Provisioning interactive dialog ---
+    if (showApiKeyDialog) {
+        AlertDialog(
+            onDismissRequest = { showApiKeyDialog = false },
+            title = { Text("Generate Provision API Key", fontSize = 15.sp, fontWeight = FontWeight.Bold) },
+            text = {
+                Column {
+                    Text("Provide a custom identifier tag for your brand new Google AI Studio credential.", fontSize = 11.sp, color = tokens.textMuted)
+                    Spacer(modifier = Modifier.height(10.dp))
+                    OutlinedTextField(
+                        value = newApiKeyName,
+                        onValueChange = { newApiKeyName = it },
+                        modifier = Modifier.fillMaxWidth(),
+                        placeholder = { Text("AI_STUDIO_PRODUCTION_KEY", fontSize = 11.sp) },
+                        colors = OutlinedTextFieldDefaults.colors(
+                            focusedTextColor = tokens.text,
+                            focusedBorderColor = Color(0xFF4285F4)
+                        )
+                    )
+                }
+            },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        if (newApiKeyName.isNotBlank()) {
+                            viewModel.addAiStudioApiKey("AI_KEY_" + newApiKeyName.uppercase() + "_" + (100..999).random())
+                            newApiKeyName = ""
+                            showApiKeyDialog = false
+                            android.widget.Toast.makeText(context, "Google API Key registered successfully!", android.widget.Toast.LENGTH_SHORT).show()
+                        }
+                    },
+                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF4285F4))
+                ) {
+                    Text("Confirm Provision", color = Color.White)
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showApiKeyDialog = false }) {
+                    Text("Cancel", color = tokens.textMuted)
+                }
+            }
+        )
+    }
+
+    // --- Get Code dialog simulator ---
+    if (showCodeDialog) {
+        val snippet = when (selectedLanguageCode) {
+            "Kotlin" -> """
+                // Kotlin Google GenAI SDK Usage snippet
+                import com.google.firebase.vertexai.vertexAI
+                
+                val vertexAI = Firebase.vertexAI
+                val model = vertexAI.generativeModel("$selectedModel")
+                
+                GlobalScope.launch {
+                    val response = model.generateContent("$promptInput")
+                    println(response.text)
+                }
+            """.trimIndent()
+            
+            "Python" -> """
+                # Python google-generativeai SDK usage
+                import google.generativeai as genai
+                
+                genai.configure(api_key="$activeKey")
+                model = genai.GenerativeModel('$selectedModel')
+                
+                response = model.generate_content("$promptInput")
+                print(response.text)
+            """.trimIndent()
+
+            "NodeJS" -> """
+                // Node.js official Google GenAI template
+                import { GoogleGenAI } from "@google/genai";
+                
+                const ai = new GoogleGenAI({ apiKey: "$activeKey" });
+                const model = ai.models.get({ model: "$selectedModel" });
+                
+                const response = await model.generateContent({
+                    prompt: "$promptInput"
+                });
+                console.log(response.text);
+            """.trimIndent()
+
+            else -> """
+                # Send raw HTTP request via standard cURL
+                curl "https://generativelanguage.googleapis.com/v1beta/models/$selectedModel:generateContent?key=$activeKey" \
+                -H 'Content-Type: application/json' \
+                -d '{
+                   "contents": [{
+                     "parts":[{"text": "$promptInput"}]
+                   }]
+                }'
+            """.trimIndent()
+        }
+
+        AlertDialog(
+            onDismissRequest = { showCodeDialog = false },
+            title = { Text("Code Generator Swarm", fontSize = 15.sp, fontWeight = FontWeight.Bold, color = Color(0xFF4285F4)) },
+            text = {
+                Column {
+                    Text("Select your primary workspace targets. Live code matches prompt.", fontSize = 11.sp, color = tokens.textMuted)
+                    Spacer(modifier = Modifier.height(8.dp))
+
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(4.dp)
+                    ) {
+                        listOf("Kotlin", "Python", "NodeJS", "cURL").forEach { lang ->
+                            val isSel = selectedLanguageCode == lang
+                            Box(
+                                modifier = Modifier
+                                    .weight(1f)
+                                                    .clip(RoundedCornerShape(6.dp))
+                                                    .background(if (isSel) Color(0xFF4285F4).copy(alpha = 0.15f) else tokens.background)
+                                                    .border(1.dp, if (isSel) Color(0xFF4285F4) else tokens.textMuted.copy(alpha = 0.15f), RoundedCornerShape(6.dp))
+                                                    .clickable { selectedLanguageCode = lang }
+                                                    .padding(vertical = 6.dp),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Text(lang, fontSize = 9.5.sp, fontWeight = FontWeight.Bold, color = if (isSel) Color(0xFF4285F4) else tokens.text)
+                            }
+                        }
+                    }
+
+                    Spacer(modifier = Modifier.height(10.dp))
+
+                    // Code output panel
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(150.dp)
+                            .background(Color(0xFF0F172A), RoundedCornerShape(8.dp))
+                            .padding(8.dp)
+                    ) {
+                        LazyColumn(modifier = Modifier.fillMaxSize()) {
+                            item {
+                                SelectionContainer {
+                                    Text(
+                                        text = snippet,
+                                        fontSize = 10.sp,
+                                        fontFamily = androidx.compose.ui.text.font.FontFamily.Monospace,
+                                        color = Color.LightGray
+                                    )
+                                }
+                            }
+                        }
+                    }
+                }
+            },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        clipboardManager.setText(androidx.compose.ui.text.AnnotatedString(snippet))
+                        android.widget.Toast.makeText(context, "Copied snippet to clipboard!", android.widget.Toast.LENGTH_SHORT).show()
+                    },
+                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF4285F4))
+                ) {
+                    Text("Copy Code", color = Color.White)
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showCodeDialog = false }) {
+                    Text("Close", color = tokens.textMuted)
+                }
+            }
+        )
+    }
+}
+
+
 
