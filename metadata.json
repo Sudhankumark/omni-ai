@@ -1,0 +1,6 @@
+{
+  "name": "OMNI-AI",
+  "description": "Multi-language mobile IDE with editor, integrated console, deployment dashboard, version control commits, team collaboration cursors, offline-first sync, and Gemini Ghostwriter assistant.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
